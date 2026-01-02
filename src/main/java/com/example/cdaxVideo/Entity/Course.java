@@ -63,6 +63,7 @@ public class Course {
     @Column(name = "sub_category")
     private String subCategory;
     
+    @JsonIgnore
     @ElementCollection
     @CollectionTable(name = "course_tags", joinColumns = @JoinColumn(name = "course_id"))
     @Column(name = "tag")
@@ -98,6 +99,7 @@ private double progressPercent;
     
     // Existing relationships
     // CHANGE: Remove @JsonManagedReference, use @JsonIgnoreProperties
+    @JsonIgnore
     @OneToMany(mappedBy = "course", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @com.fasterxml.jackson.annotation.JsonIgnoreProperties({"course", "videos.module"}) // Ignore course in modules AND module in videos
     private List<Module> modules = new ArrayList<>();
@@ -206,6 +208,11 @@ private double progressPercent;
     
     public boolean isPurchased() { return purchased; }
     public void setPurchased(boolean purchased) { this.purchased = purchased; }
+
+    @JsonProperty("isSubscribed")
+    public boolean isSubscribed() {
+        return this.purchased; 
+    }
     
     public int getTotalModules() { 
         return this.modules != null ? this.modules.size() : totalModules;

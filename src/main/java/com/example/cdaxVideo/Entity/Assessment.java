@@ -17,6 +17,8 @@ public class Assessment {
     private String title;
     private int totalMarks;
 
+    private int totalQuestions;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "module_id")
     @JsonBackReference
@@ -35,6 +37,9 @@ public class Assessment {
 
     public int getTotalMarks() { return totalMarks; }
     public void setTotalMarks(int totalMarks) { this.totalMarks = totalMarks; }
+
+    public int getTotalQuestions() { return totalQuestions; }
+    public void setTotalQuestions(int totalQuestions) { this.totalQuestions = totalQuestions; }
 
     public Module getModule() { return module; }
     public void setModule(Module module) { this.module = module; }

@@ -1,6 +1,6 @@
 package com.example.cdaxVideo.Service;
 
-import com.example.cdaxVideo.DTO.CourseDTO;
+import com.example.cdaxVideo.DTO.CourseResponseDTO;
 import com.example.cdaxVideo.Entity.*;
 import com.example.cdaxVideo.Entity.Module;
 import com.example.cdaxVideo.Repository.*;
@@ -21,13 +21,13 @@ public class CourseService {
     @Autowired private QuestionRepository questionRepository;
     @Autowired private UserCoursePurchaseRepository purchaseRepository;
     @Autowired private UserRepository userRepository;
-
+    @Autowired private UserVideoActivityRepository userVideoActivityRepository;
     @Autowired private UserVideoProgressRepository userVideoProgressRepository;
     @Autowired private UserModuleProgressRepository userModuleProgressRepository;
     @Autowired private UserAssessmentProgressRepository userAssessmentProgressRepository;
     @Autowired private UserCoursePurchaseRepository userCoursePurchaseRepository;
 
-    public List<CourseDTO> getDashboardCourses(Long userId) {
+    public List<CourseResponseDTO> getDashboardCourses(Long userId) {
         User user = userRepository.findById(userId)
                                   .orElseThrow(() -> new RuntimeException("User not found"));
         List<Course> courses;
@@ -36,7 +36,7 @@ public class CourseService {
         } else {
             courses = courseRepository.findBySubscribedUsers_Id(userId);
         }
-        return courses.stream().map(CourseDTO::new).collect(Collectors.toList());
+        return courses.stream().map(CourseResponseDTO::new).collect(Collectors.toList());
     }
 
     public List<Course> getSubscribedCourses(Long userId) {
@@ -299,7 +299,7 @@ public class CourseService {
     }
 
     // Fetch courses user has NOT purchased yet
-public List<CourseDTO> getAvailableCoursesForUser(Long userId) {
+public List<CourseResponseDTO> getAvailableCoursesForUser(Long userId) {
     List<Course> allCourses = courseRepository.findAllWithModules();
     List<Course> purchased = getCoursesForUser(userId);
 
@@ -311,7 +311,7 @@ public List<CourseDTO> getAvailableCoursesForUser(Long userId) {
             available.add(c);
         }
     }
-    return available.stream().map(CourseDTO::new).collect(Collectors.toList());
+    return available.stream().map(CourseResponseDTO::new).collect(Collectors.toList());
 }
 
 // Dashboard stats for cards
@@ -382,6 +382,409 @@ public Map<String, Object> getDashboardStats(Long userId) {
     public List<Assessment> getAssessmentsByModuleId(Long moduleId) {
         return assessmentRepository.findByModuleId(moduleId);
     }
+    //-----------------------------------------------------------------------------
+
+@Transactional(rollbackFor = Exception.class)
+public Map<String, Object> submitAssessment(
+        Long userId,
+        Long assessmentId,
+        Map<Long, String> answers) {
+    
+    try {
+        System.out.println("=== ASSESSMENT SUBMIT START ===");
+        
+        // 1. Basic validation
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        Assessment assessment = assessmentRepository.findById(assessmentId)
+                .orElseThrow(() -> new RuntimeException("Assessment not found"));
+        Module module = assessment.getModule(); // Get the module
+        
+        // 2. Calculate score
+        List<Question> questions = questionRepository.findByAssessmentId(assessmentId);
+        int totalMarks = 0;
+        int obtainedMarks = 0;
+        
+        // 🆕 Store question-by-question results
+        List<Map<String, Object>> questionResults = new ArrayList<>();
+        
+        for (Question q : questions) {
+            totalMarks += q.getMarks();
+            String userAnswer = answers.get(q.getId());
+            boolean isCorrect = userAnswer != null && userAnswer.equalsIgnoreCase(q.getCorrectAnswer());
+            
+            if (isCorrect) {
+                obtainedMarks += q.getMarks();
+            }
+            
+            // Store question result
+            Map<String, Object> qResult = new HashMap<>();
+            qResult.put("questionId", q.getId());
+            qResult.put("userAnswer", userAnswer);
+            qResult.put("correctAnswer", q.getCorrectAnswer());
+            qResult.put("correct", isCorrect);
+            qResult.put("marks", q.getMarks());
+            questionResults.add(qResult);
+        }
+        
+        double percentage = (double) obtainedMarks / totalMarks * 100;
+        boolean passed = percentage >= 70.0;
+        
+        System.out.println("Score: " + obtainedMarks + "/" + totalMarks + " = " + percentage + "%");
+        
+        // 3. **FORCE CREATE/UPDATE ASSESSMENT PROGRESS**
+        Optional<UserAssessmentProgress> existing = userAssessmentProgressRepository
+                .findByUserAndAssessment(user, assessment);
+        
+        UserAssessmentProgress progress;
+        
+        if (existing.isPresent()) {
+            progress = existing.get();
+            System.out.println("Found existing progress, ID=" + progress.getId());
+        } else {
+            System.out.println("Creating new assessment progress row");
+            progress = new UserAssessmentProgress();
+            progress.setUser(user);
+            progress.setAssessment(assessment);
+            progress.setUnlocked(true);
+            progress.setUnlockedOn(new Date());
+            progress = userAssessmentProgressRepository.save(progress);
+            System.out.println("New progress saved with ID=" + progress.getId());
+        }
+        
+        // 4. Update assessment progress fields
+        progress.setAttempts(progress.getAttempts() == null ? 1 : progress.getAttempts() + 1);
+        progress.setObtainedMarks(obtainedMarks);
+        progress.setTotalMarks(totalMarks);
+        progress.setPercentage(percentage);
+        progress.setPassed(passed);
+        progress.setSubmittedOn(new Date());
+        
+        if (passed && progress.getPassedOn() == null) {
+            progress.setPassedOn(new Date());
+        }
+        
+        // 5. **FORCE SAVE ASSESSMENT PROGRESS**
+        userAssessmentProgressRepository.saveAndFlush(progress);
+        System.out.println("Assessment progress updated successfully, ID=" + progress.getId());
+        
+        // 6. **UPDATE MODULE PROGRESS IF ASSESSMENT PASSED**
+        boolean moduleCompleted = false;
+        if (passed && module != null) {
+            try {
+                Optional<UserModuleProgress> moduleProgressOpt = userModuleProgressRepository
+                    .findByUserAndModule(user, module);
+                
+                UserModuleProgress moduleProgress;
+                if (moduleProgressOpt.isPresent()) {
+                    moduleProgress = moduleProgressOpt.get();
+                    System.out.println("Found existing module progress");
+                } else {
+                    moduleProgress = new UserModuleProgress();
+                    moduleProgress.setUser(user);
+                    moduleProgress.setModule(module);
+                    System.out.println("Creating new module progress");
+                }
+                
+                // Mark module as completed
+                moduleProgress.markAsCompleted();
+                moduleProgress.setAssessmentPassed(true);
+                moduleProgress.setAssessmentPassedOn(new Date());
+                
+                userModuleProgressRepository.save(moduleProgress);
+                moduleCompleted = true;
+                System.out.println("✅ Module marked as completed!");
+                
+            } catch (Exception e) {
+                System.err.println("❌ Module progress update failed: " + e.getMessage());
+                e.printStackTrace();
+            }
+        }
+        
+        // 7. Unlock next module if passed
+        boolean nextModuleUnlocked = false;
+        if (passed && module != null) {
+            try {
+                nextModuleUnlocked = unlockNextModuleAfterPassing(
+                    userId,
+                    module.getCourse().getId(),
+                    module.getId()
+                );
+                System.out.println("Next module unlocked: " + nextModuleUnlocked);
+            } catch (Exception e) {
+                System.err.println("Module unlock failed (non-critical): " + e.getMessage());
+            }
+        }
+        
+        // 8. Return comprehensive response
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("passed", passed);
+        response.put("obtainedMarks", obtainedMarks);
+        response.put("totalMarks", totalMarks);
+        response.put("percentage", percentage);
+        response.put("nextModuleUnlocked", nextModuleUnlocked);
+        response.put("moduleCompleted", moduleCompleted);
+        response.put("questionResults", questionResults);
+        response.put("message", passed 
+            ? "Congratulations! You passed with " + String.format("%.1f", percentage) + "%!" 
+            : "You scored " + String.format("%.1f", percentage) + "%. Need 70% to pass. Try again!");
+        
+        System.out.println("=== ASSESSMENT SUBMIT END ===");
+        return response;
+        
+    } catch (Exception e) {
+        System.err.println("❌ FATAL ERROR in submitAssessment:");
+        e.printStackTrace();
+        
+        Map<String, Object> errorResponse = new HashMap<>();
+        errorResponse.put("success", false);
+        errorResponse.put("error", "Failed to submit assessment: " + e.getMessage());
+        return errorResponse;
+    }
+}
+
+/**
+ * Unlock next module after passing assessment (≥70%)
+ */
+@Transactional
+public boolean unlockNextModuleAfterPassing(
+        Long userId,
+        Long courseId,
+        Long currentModuleId
+) {
+    System.out.println("🔓 unlockNextModuleAfterPassing START");
+
+    User user = userRepository.findById(userId)
+            .orElseThrow(() -> new RuntimeException("User not found"));
+
+    Course course = courseRepository.findById(courseId)
+            .orElseThrow(() -> new RuntimeException("Course not found"));
+
+    // ✅ Fetch modules FIRST
+    List<Module> modules = moduleRepository.findByCourseId(courseId);
+
+    if (modules.isEmpty()) {
+        System.out.println("❌ No modules found for course");
+        return false;
+    }
+
+    // ✅ SORT modules properly
+    modules.sort(Comparator.comparing(Module::getId));
+
+    System.out.println("🔓 Modules order:");
+    for (int i = 0; i < modules.size(); i++) {
+        System.out.println("   [" + i + "] moduleId=" + modules.get(i).getId());
+    }
+
+    // ✅ Find current module index
+    int currentIndex = -1;
+    for (int i = 0; i < modules.size(); i++) {
+        if (modules.get(i).getId().equals(currentModuleId)) {
+            currentIndex = i;
+            break;
+        }
+    }
+
+    if (currentIndex == -1) {
+        System.out.println("❌ Current module not found in course modules");
+        return false;
+    }
+
+    if (currentIndex + 1 >= modules.size()) {
+        System.out.println("ℹ️ Current module is the last module");
+        return false;
+    }
+
+    Module nextModule = modules.get(currentIndex + 1);
+    System.out.println("🔓 Next module ID = " + nextModule.getId());
+
+    // ✅ Check user-module progress
+    Optional<UserModuleProgress> existingProgress =
+            userModuleProgressRepository.findByUserAndModule(user, nextModule);
+
+    if (existingProgress.isPresent() && existingProgress.get().isUnlocked()) {
+        System.out.println("ℹ️ Next module already unlocked");
+        return true;
+    }
+
+    // ✅ Unlock next module
+    UserModuleProgress moduleProgress = existingProgress.orElseGet(() -> {
+        UserModuleProgress p = new UserModuleProgress();
+        p.setUser(user);
+        p.setModule(nextModule);
+        return p;
+    });
+
+    moduleProgress.setUnlocked(true);
+    moduleProgress.setUnlockedOn(new Date());
+    userModuleProgressRepository.save(moduleProgress);
+
+    System.out.println("✅ Next module unlocked");
+
+    // ✅ Unlock first video of next module
+    List<Video> nextVideos = videoRepository.findByModuleId(nextModule.getId());
+    if (!nextVideos.isEmpty()) {
+        Video firstVideo = nextVideos.get(0);
+
+        UserVideoProgress videoProgress =
+                userVideoProgressRepository.findByUserAndVideo(user, firstVideo)
+                        .orElseGet(() -> {
+                            UserVideoProgress v = new UserVideoProgress();
+                            v.setUser(user);
+                            v.setVideo(firstVideo);
+                            return v;
+                        });
+
+        videoProgress.setUnlocked(true);
+        videoProgress.setUnlockedOn(new Date());
+        userVideoProgressRepository.save(videoProgress);
+
+        System.out.println("🎬 First video unlocked");
+    }
+
+    System.out.println("🔓 unlockNextModuleAfterPassing END");
+    return true;
+}
+
+/**
+ * Get assessment status for a user
+ */
+public Map<String, Object> getAssessmentStatus(Long userId, Long assessmentId) {
+    User user = userRepository.findById(userId)
+            .orElseThrow(() -> new RuntimeException("User not found"));
+    
+    Assessment assessment = assessmentRepository.findById(assessmentId)
+            .orElseThrow(() -> new RuntimeException("Assessment not found"));
+    
+    Optional<UserAssessmentProgress> progressOpt = userAssessmentProgressRepository
+            .findByUserAndAssessment(user, assessment);
+    
+    Map<String, Object> status = new HashMap<>();
+    status.put("assessmentId", assessmentId);
+    status.put("assessmentTitle", assessment.getTitle());
+    status.put("totalMarks", assessment.getTotalMarks());
+    
+    if (progressOpt.isPresent()) {
+        UserAssessmentProgress progress = progressOpt.get();
+        status.put("unlocked", progress.getUnlocked());
+        status.put("attempts", progress.getAttempts());
+        status.put("passed", progress.isPassed());
+        status.put("obtainedMarks", progress.getObtainedMarks());
+        status.put("totalMarksAttempted", progress.getTotalMarks());
+        status.put("percentage", progress.getPercentage());
+        status.put("lastSubmitted", progress.getSubmittedOn());
+        status.put("passedOn", progress.getPassedOn());
+        status.put("unlockedOn", progress.getUnlockedOn());
+        
+        // Calculate if user can retake
+        boolean canRetake = Boolean.TRUE.equals(progress.getUnlocked()) && !progress.isPassed();
+        status.put("canRetake", canRetake);
+    } else {
+        status.put("unlocked", false);
+        status.put("attempts", 0);
+        status.put("passed", false);
+        status.put("canRetake", false);
+    }
+    
+    return status;
+}
+
+/**
+ * Check if user can attempt assessment (all videos completed)
+ */
+public boolean canAttemptAssessment(Long userId, Long assessmentId) {
+    User user = userRepository.findById(userId)
+            .orElseThrow(() -> new RuntimeException("User not found"));
+    
+    Assessment assessment = assessmentRepository.findById(assessmentId)
+            .orElseThrow(() -> new RuntimeException("Assessment not found"));
+    
+    Module module = assessment.getModule();
+    
+    // Check if assessment is unlocked for user
+    Optional<UserAssessmentProgress> progressOpt = userAssessmentProgressRepository
+            .findByUserAndAssessment(user, assessment);
+    
+    if (progressOpt.isPresent() && Boolean.TRUE.equals(progressOpt.get().getUnlocked())) {
+        // Check if user already passed
+        if (progressOpt.get().isPassed()) {
+            return false; // Already passed, no need to retake unless you allow it
+        }
+        return true;
+    }
+    
+    // Check if all videos in module are completed
+    List<Video> moduleVideos = videoRepository.findByModuleId(module.getId());
+    if (moduleVideos.isEmpty()) {
+        return false;
+    }
+    
+    int completedVideos = 0;
+    for (Video video : moduleVideos) {
+        Optional<UserVideoProgress> videoProgress = userVideoProgressRepository
+                .findByUserAndVideo(user, video);
+        
+        if (videoProgress.isPresent() && videoProgress.get().isCompleted()) {
+            completedVideos++;
+        }
+    }
+    
+    // All videos must be completed to attempt assessment
+    return completedVideos == moduleVideos.size();
+}
+
+/**
+ * Get assessment with questions for a user
+ */
+public Map<String, Object> getAssessmentWithQuestions(Long userId, Long assessmentId) {
+    User user = userRepository.findById(userId)
+            .orElseThrow(() -> new RuntimeException("User not found"));
+    
+    Assessment assessment = assessmentRepository.findById(assessmentId)
+            .orElseThrow(() -> new RuntimeException("Assessment not found"));
+    
+    // Check if user can attempt
+    boolean canAttempt = canAttemptAssessment(userId, assessmentId);
+    
+    if (!canAttempt) {
+        throw new RuntimeException("Cannot attempt assessment. Complete all videos first or assessment is already passed.");
+    }
+    
+    // Get questions
+    List<Question> questions = questionRepository.findByAssessmentId(assessmentId);
+    
+    // Prepare response
+    Map<String, Object> response = new HashMap<>();
+    response.put("assessment", assessment);
+    response.put("questions", questions);
+    response.put("totalQuestions", questions.size());
+    
+    // Calculate total marks
+    int totalMarks = questions.stream().mapToInt(Question::getMarks).sum();
+    response.put("totalMarks", totalMarks);
+    
+    // Get previous attempt info if any
+    Optional<UserAssessmentProgress> progressOpt = userAssessmentProgressRepository
+            .findByUserAndAssessment(user, assessment);
+    
+    if (progressOpt.isPresent()) {
+        UserAssessmentProgress progress = progressOpt.get();
+        response.put("previousAttempts", progress.getAttempts());
+        response.put("bestScore", progress.getObtainedMarks());
+        response.put("bestPercentage", progress.getPercentage());
+    } else {
+        response.put("previousAttempts", 0);
+    }
+    
+    return response;
+}
+
+
+
+
+
+
 
     // ----- QUESTION -----
     public Question saveQuestion(Long assessmentId, Question question) {
@@ -462,21 +865,32 @@ public Map<String, Object> getDashboardStats(Long userId) {
      * Return courses for user with transient flags applied so frontend can render locked/unlocked/completed state.
      */
 public List<Course> getCoursesForUser(Long userId) {
-
+    System.out.println("=== GET COURSES FOR USER " + userId + " ===");
+    
+    // Get all published courses WITH modules and videos
     List<Course> courses = getAllCoursesWithModulesAndVideos();
-
-    for (Course c : courses) {
-
-        boolean purchased = purchaseRepository.existsByUserIdAndCourseId(userId, c.getId());
-        c.setPurchased(purchased);
-
-        for (Module m : c.getModules()) {
-            m.setVideos(videoRepository.findByModuleId(m.getId()));
+    
+    System.out.println("Total courses found: " + courses.size());
+    
+    for (Course course : courses) {
+        // Check if user purchased the course
+        boolean isPurchased = userCoursePurchaseRepository
+                .existsByUserIdAndCourseId(userId, course.getId());
+        course.setPurchased(isPurchased);
+        
+        // Debug: Check modules
+        System.out.println("Course: " + course.getTitle() + 
+                         " | Purchased: " + isPurchased +
+                         " | Modules: " + (course.getModules() != null ? course.getModules().size() : "null"));
+        
+        if (course.getModules() != null) {
+            for (Module module : course.getModules()) {
+                System.out.println("  - Module: " + module.getTitle() + 
+                                 " | Videos: " + (module.getVideos() != null ? module.getVideos().size() : 0));
+            }
         }
-
-        applyUserProgressToCourse(c, userId);
     }
-
+    
     return courses;
 }
 
@@ -985,6 +1399,284 @@ private boolean checkPreviousModuleCompleted(User user, List<Module> modules, in
     return course.getModules();
 }
 
+
+
+
+// In CourseService.java
+/**
+ * Calculate detailed progress for a user's course
+ */
+public Map<String, Object> calculateCourseProgress(Long userId, Long courseId) {
+    System.out.println("🎯 Calculating progress for user " + userId + ", course " + courseId);
+    
+    User user = userRepository.findById(userId)
+            .orElseThrow(() -> new RuntimeException("User not found"));
+    
+    Course course = getCourseByIdWithModulesAndVideos(courseId)
+            .orElseThrow(() -> new RuntimeException("Course not found"));
+    
+    int totalVideos = 0;
+    int completedVideos = 0;
+    int totalModules = course.getModules().size();
+    int completedModules = 0;
+    boolean isCourseCompleted = true;
+    
+    List<Map<String, Object>> moduleProgressList = new ArrayList<>();
+    
+    // Calculate progress for each module
+    for (Module module : course.getModules()) {
+        Map<String, Object> moduleProgress = new HashMap<>();
+        moduleProgress.put("moduleId", module.getId());
+        moduleProgress.put("moduleTitle", module.getTitle());
+        
+        // Get all videos in this module
+        List<Video> videos = videoRepository.findByModuleId(module.getId());
+        int moduleTotalVideos = videos.size();
+        int moduleCompletedVideos = 0;
+        
+        // Check video completion
+        for (Video video : videos) {
+            totalVideos++;
+            Optional<UserVideoProgress> videoProgress = userVideoProgressRepository
+                    .findByUserAndVideo(user, video);
+            
+            if (videoProgress.isPresent() && videoProgress.get().isCompleted()) {
+                completedVideos++;
+                moduleCompletedVideos++;
+            }
+        }
+        
+        // Calculate module video completion percentage
+        double moduleVideoPercent = moduleTotalVideos > 0 ? 
+                ((double) moduleCompletedVideos / moduleTotalVideos) * 100 : 0;
+        
+        moduleProgress.put("totalVideos", moduleTotalVideos);
+        moduleProgress.put("completedVideos", moduleCompletedVideos);
+        moduleProgress.put("videoProgress", Math.round(moduleVideoPercent));
+        
+        // Check if module is completed (all videos + assessment if exists)
+        boolean moduleCompleted = moduleCompletedVideos == moduleTotalVideos;
+        
+        // Check assessment completion if module has assessment
+        if (moduleCompleted) {
+            List<Assessment> assessments = assessmentRepository.findByModuleId(module.getId());
+            if (!assessments.isEmpty()) {
+                for (Assessment assessment : assessments) {
+                    Optional<UserAssessmentProgress> assessmentProgress = userAssessmentProgressRepository
+                            .findByUserAndAssessment(user, assessment);
+                    
+                    boolean assessmentPassed = assessmentProgress.isPresent() && 
+                                              assessmentProgress.get().isPassed();
+                    moduleCompleted = moduleCompleted && assessmentPassed;
+                    
+                    moduleProgress.put("assessmentPassed", assessmentPassed);
+                    moduleProgress.put("assessmentScore", assessmentProgress
+                            .map(ap -> ap.getPercentage())
+                            .orElse(0.0));
+                }
+            }
+        }
+        
+        // Check module progress in user_module_progress
+        Optional<UserModuleProgress> userModuleProgress = userModuleProgressRepository
+                .findByUserAndModule(user, module);
+        
+        boolean moduleMarkedCompleted = userModuleProgress
+                .map(UserModuleProgress::isCompleted)
+                .orElse(false);
+        
+        moduleProgress.put("completed", moduleCompleted || moduleMarkedCompleted);
+        moduleProgress.put("unlocked", userModuleProgress
+                .map(UserModuleProgress::isUnlocked)
+                .orElse(false));
+        
+        if (moduleCompleted || moduleMarkedCompleted) {
+            completedModules++;
+        } else {
+            isCourseCompleted = false;
+        }
+        
+        moduleProgressList.add(moduleProgress);
+    }
+    
+    // Calculate overall course progress
+    double overallProgress = totalVideos > 0 ? 
+            ((double) completedVideos / totalVideos) * 100 : 0.0;
+    
+    // Check if course is marked as completed in database
+    boolean coursePurchased = purchaseRepository.existsByUserIdAndCourseId(userId, courseId);
+    
+    Map<String, Object> result = new HashMap<>();
+    result.put("courseId", courseId);
+    result.put("courseTitle", course.getTitle());
+    result.put("courseDescription", course.getDescription());
+    result.put("purchased", coursePurchased);
+    result.put("totalModules", totalModules);
+    result.put("completedModules", completedModules);
+    result.put("totalVideos", totalVideos);
+    result.put("completedVideos", completedVideos);
+    result.put("progressPercent", Math.round(overallProgress));
+    result.put("isCompleted", isCourseCompleted);
+    result.put("moduleProgress", moduleProgressList);
+    
+    System.out.println("📊 Progress Calculation Result:");
+    System.out.println("   ├─ Total Videos: " + totalVideos);
+    System.out.println("   ├─ Completed Videos: " + completedVideos);
+    System.out.println("   ├─ Progress: " + Math.round(overallProgress) + "%");
+    System.out.println("   ├─ Total Modules: " + totalModules);
+    System.out.println("   ├─ Completed Modules: " + completedModules);
+    System.out.println("   └─ Course Completed: " + isCourseCompleted);
+    
+    return result;
+}
+
+/**
+ * Get overall progress for a user across all courses
+ */
+public Map<String, Object> getUserOverallProgress(Long userId) {
+    System.out.println("🎯 Calculating overall progress for user " + userId);
+    
+    User user = userRepository.findById(userId)
+            .orElseThrow(() -> new RuntimeException("User not found"));
+    
+    // Get all purchased courses
+    List<Course> purchasedCourses = courseRepository.findBySubscribedUsers_Id(userId);
+    
+    int totalCourses = purchasedCourses.size();
+    int completedCourses = 0;
+    int totalVideos = 0;
+    int completedVideos = 0;
+    int totalModules = 0;
+    int completedModules = 0;
+    
+    List<Map<String, Object>> courseProgressList = new ArrayList<>();
+    
+    for (Course course : purchasedCourses) {
+        Map<String, Object> courseProgress = calculateCourseProgress(userId, course.getId());
+        courseProgressList.add(courseProgress);
+        
+        totalVideos += (int) courseProgress.get("totalVideos");
+        completedVideos += (int) courseProgress.get("completedVideos");
+        totalModules += (int) courseProgress.get("totalModules");
+        completedModules += (int) courseProgress.get("completedModules");
+        
+        if ((boolean) courseProgress.get("isCompleted")) {
+            completedCourses++;
+        }
+    }
+    
+    // Calculate overall percentages
+    double overallVideoProgress = totalVideos > 0 ? 
+            ((double) completedVideos / totalVideos) * 100 : 0.0;
+    
+    double overallModuleProgress = totalModules > 0 ? 
+            ((double) completedModules / totalModules) * 100 : 0.0;
+    
+    double overallCourseProgress = totalCourses > 0 ? 
+            ((double) completedCourses / totalCourses) * 100 : 0.0;
+    
+    Map<String, Object> result = new HashMap<>();
+    result.put("userId", userId);
+    result.put("totalCourses", totalCourses);
+    result.put("completedCourses", completedCourses);
+    result.put("inProgressCourses", totalCourses - completedCourses);
+    result.put("totalModules", totalModules);
+    result.put("completedModules", completedModules);
+    result.put("totalVideos", totalVideos);
+    result.put("completedVideos", completedVideos);
+    result.put("overallVideoProgress", Math.round(overallVideoProgress));
+    result.put("overallModuleProgress", Math.round(overallModuleProgress));
+    result.put("overallCourseProgress", Math.round(overallCourseProgress));
+    result.put("courseProgress", courseProgressList);
+    
+    System.out.println("📊 Overall Progress Summary:");
+    System.out.println("   ├─ Total Courses: " + totalCourses);
+    System.out.println("   ├─ Completed Courses: " + completedCourses);
+    System.out.println("   ├─ Total Videos: " + totalVideos);
+    System.out.println("   ├─ Completed Videos: " + completedVideos);
+    System.out.println("   ├─ Video Progress: " + Math.round(overallVideoProgress) + "%");
+    System.out.println("   └─ Course Progress: " + Math.round(overallCourseProgress) + "%");
+    
+    return result;
+}
+
+public List<Map<String, Object>> getUserCourseStats(Long userId) {
+    List<Map<String, Object>> courseStats = new ArrayList<>();
+    
+    // Get user's enrolled courses
+    List<Course> enrolledCourses = courseRepository.findBySubscribedUsers_Id(userId);
+    
+    // Get user entity
+    Optional<User> userOpt = userRepository.findById(userId);
+    if (userOpt.isEmpty()) {
+        return courseStats;
+    }
+    User user = userOpt.get();
+    
+    for (Course course : enrolledCourses) {
+        Map<String, Object> stat = new HashMap<>();
+        
+        // Basic course info
+        stat.put("courseId", course.getId());
+        stat.put("courseTitle", course.getTitle());
+        
+        // Get total videos in course
+        Long totalVideos = videoRepository.countByCourseId(course.getId());
+        
+        // Get completed videos from UserVideoProgress
+        int completedVideos = 0;
+        
+        // Get all modules in course
+        List<Module> modules = moduleRepository.findByCourseId(course.getId());
+        
+        for (Module module : modules) {
+            // Get all videos in module
+            List<Video> videos = videoRepository.findByModuleId(module.getId());
+            
+            for (Video video : videos) {
+                Optional<UserVideoProgress> videoProgress = userVideoProgressRepository
+                    .findByUserAndVideo(user, video);
+                
+                if (videoProgress.isPresent() && videoProgress.get().isCompleted()) {
+                    completedVideos++;
+                }
+            }
+        }
+        
+        // Get total and completed modules
+        Long totalModules = moduleRepository.countByCourseId(course.getId());
+        
+        int completedModules = 0;
+        for (Module module : modules) {
+            Optional<UserModuleProgress> moduleProgress = userModuleProgressRepository
+                .findByUserAndModule(user, module);
+            
+            if (moduleProgress.isPresent() && moduleProgress.get().isCompleted()) {
+                completedModules++;
+            }
+        }
+        
+        // Calculate progress percentage
+        int progressPercent = 0;
+        if (totalVideos > 0) {
+            progressPercent = (int) ((completedVideos * 100) / totalVideos);
+        }
+        
+        boolean isCompleted = progressPercent >= 100;
+        
+        // Add to stats
+        stat.put("totalVideos", totalVideos);
+        stat.put("completedVideos", completedVideos);
+        stat.put("totalModules", totalModules);
+        stat.put("completedModules", completedModules);
+        stat.put("progressPercent", progressPercent);
+        stat.put("isCompleted", isCompleted);
+        
+        courseStats.add(stat);
+    }
+    
+    return courseStats;
+}
     
 
 }

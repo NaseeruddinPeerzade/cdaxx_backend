@@ -6,11 +6,11 @@ public class DashboardDTO {
     private Long totalUsers;
     private Long newUsers;
     private Long totalCourses;
-    private List<CourseDTO> courses; // dynamic courses list
+    private List<CourseResponseDTO> courses; // dynamic courses list
 
     public DashboardDTO() {}
 
-    public DashboardDTO(Long totalUsers, Long newUsers, Long totalCourses, List<CourseDTO> courses) {
+    public DashboardDTO(Long totalUsers, Long newUsers, Long totalCourses, List<CourseResponseDTO> courses) {
         this.totalUsers = totalUsers;
         this.newUsers = newUsers;
         this.totalCourses = totalCourses;
@@ -42,11 +42,11 @@ public class DashboardDTO {
         this.totalCourses = totalCourses;
     }
 
-    public List<CourseDTO> getCourses() {
+    public List<CourseResponseDTO> getCourses() {
         return courses;
     }
 
-    public void setCourses(List<CourseDTO> courses) {
+    public void setCourses(List<CourseResponseDTO> courses) {
         this.courses = courses;
     }
 }

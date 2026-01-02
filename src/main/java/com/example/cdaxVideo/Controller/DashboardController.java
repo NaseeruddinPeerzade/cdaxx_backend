@@ -1,6 +1,6 @@
 package com.example.cdaxVideo.Controller;
 
-import com.example.cdaxVideo.DTO.CourseDTO;
+import com.example.cdaxVideo.DTO.CourseResponseDTO;
 import com.example.cdaxVideo.Service.CourseService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -23,7 +23,7 @@ public class DashboardController {
      */
     @GetMapping("/user-courses")
     public ResponseEntity<Map<String, Object>> getDashboardCourses(@RequestParam Long userId) {
-        List<CourseDTO> courses = courseService.getDashboardCourses(userId);
+        List<CourseResponseDTO> courses = courseService.getDashboardCourses(userId);
         Map<String,Object> resp = new HashMap<>();
         resp.put("userId", userId);
         resp.put("courses", courses);
@@ -35,17 +35,13 @@ public class DashboardController {
      * Excludes courses already purchased
      */
     @GetMapping("/courses/available")
-    public ResponseEntity<List<CourseDTO>> getAvailableCourses(@RequestParam Long userId) {
-        List<CourseDTO> available = courseService.getAvailableCoursesForUser(userId);
+    public ResponseEntity<List<CourseResponseDTO>> getAvailableCourses(@RequestParam Long userId) {
+        List<CourseResponseDTO> available = courseService.getAvailableCoursesForUser(userId);
         return ResponseEntity.ok(available);
     }
 
     /**
      * Dashboard stats for cards: Courses, In Progress, Videos, Progress %
      */
-    @GetMapping("/stats")
-    public ResponseEntity<Map<String, Object>> getDashboardStats(@RequestParam Long userId) {
-        Map<String, Object> stats = courseService.getDashboardStats(userId);
-        return ResponseEntity.ok(stats);
-    }
+
 }

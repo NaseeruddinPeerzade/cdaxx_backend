@@ -3,13 +3,13 @@ package com.example.cdaxVideo.Entity;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import jakarta.persistence.Transient;
 import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 import java.util.ArrayList;
 import java.util.List;
 
 @Entity
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler", "userProgress"})
 public class Module {
 
     @Id
@@ -19,15 +19,16 @@ public class Module {
     private String title;
     private int durationSec;
 
-    // CHANGE: Remove @JsonBackReference, use @JsonIgnore
-    @JsonIgnore
+    // FIX: Add @JsonIgnoreProperties to prevent circular reference
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler", "userProgress"})
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "course_id")
     private Course course;
 
-    // CHANGE: Remove @JsonManagedReference, use @JsonIgnoreProperties
-    @OneToMany(mappedBy = "module", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    @JsonIgnoreProperties("module")  // This tells Jackson to ignore 'module' field in Video objects
+    // FIX: Add @JsonIgnoreProperties
+    @OneToMany(mappedBy = "module", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("displayOrder ASC")
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler", "userProgress"})
     private List<Video> videos = new ArrayList<>();
     
     @Transient

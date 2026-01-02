@@ -19,6 +19,11 @@ public class UserModuleProgress {
 
     private boolean unlocked = false;
     private boolean assessmentPassed = false;
+    
+    // 🔥 CRITICAL FIX: Add these missing fields
+    private boolean completed = false;
+    private Date completedOn;
+    
     private Date unlockedOn;
     private Date assessmentPassedOn;
 
@@ -33,14 +38,46 @@ public class UserModuleProgress {
     public void setModule(Module module) { this.module = module; }
 
     public boolean isUnlocked() { return unlocked; }
-    public void setUnlocked(boolean unlocked) { this.unlocked = unlocked; }
+    public void setUnlocked(boolean unlocked) { 
+        this.unlocked = unlocked;
+        if (unlocked && this.unlockedOn == null) {
+            this.unlockedOn = new Date();
+        }
+    }
 
     public boolean isAssessmentPassed() { return assessmentPassed; }
-    public void setAssessmentPassed(boolean assessmentPassed) { this.assessmentPassed = assessmentPassed; }
+    public void setAssessmentPassed(boolean assessmentPassed) { 
+        this.assessmentPassed = assessmentPassed;
+        if (assessmentPassed && this.assessmentPassedOn == null) {
+            this.assessmentPassedOn = new Date();
+        }
+    }
+    
+    // 🔥 CRITICAL FIX: Add these getters/setters
+    public boolean isCompleted() { return completed; }
+    public void setCompleted(boolean completed) { 
+        this.completed = completed;
+        if (completed && this.completedOn == null) {
+            this.completedOn = new Date();
+        }
+    }
+    
+    public Date getCompletedOn() { return completedOn; }
+    public void setCompletedOn(Date completedOn) { this.completedOn = completedOn; }
 
     public Date getUnlockedOn() { return unlockedOn; }
     public void setUnlockedOn(Date unlockedOn) { this.unlockedOn = unlockedOn; }
 
     public Date getAssessmentPassedOn() { return assessmentPassedOn; }
     public void setAssessmentPassedOn(Date assessmentPassedOn) { this.assessmentPassedOn = assessmentPassedOn; }
+    
+    // Helper method to mark module as completed (when assessment is passed)
+    public void markAsCompleted() {
+        this.completed = true;
+        this.completedOn = new Date();
+        this.assessmentPassed = true; // Module is considered passed when completed
+        if (this.assessmentPassedOn == null) {
+            this.assessmentPassedOn = new Date();
+        }
+    }
 }

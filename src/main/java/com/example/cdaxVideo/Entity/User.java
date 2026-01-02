@@ -1,12 +1,15 @@
 package com.example.cdaxVideo.Entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Entity
 @Table(name = "users")
@@ -63,6 +66,10 @@ public class User {
 
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
+
+    @JsonIgnore
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Set<UserVideoProgress> videoProgress = new HashSet<>();
 
     @Embedded
     private UserPreferences preferences;
@@ -181,6 +188,14 @@ public class User {
 
     public void setDateOfBirth(LocalDate dateOfBirth) {
         this.dateOfBirth = dateOfBirth;
+    }
+
+    public Set<UserVideoProgress> getVideoProgress() {
+        return videoProgress;
+    }
+
+    public void setVideoProgress(Set<UserVideoProgress> videoProgress) {
+        this.videoProgress = videoProgress;
     }
 
     public String getAddress() {
