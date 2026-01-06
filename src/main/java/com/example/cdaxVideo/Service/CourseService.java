@@ -7,12 +7,15 @@ import com.example.cdaxVideo.Repository.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
 public class CourseService {
+    private static final Logger logger = LoggerFactory.getLogger(VideoService.class);
 
     @Autowired private CourseRepository courseRepository;
     @Autowired private ModuleRepository moduleRepository;
@@ -805,61 +808,66 @@ public Map<String, Object> getAssessmentWithQuestions(Long userId, Long assessme
      * - unlock first module for user
      * - unlock first 3 videos of first module (or less if module shorter)
      */
-    @Transactional
-    public String purchaseCourse(Long userId, Long courseId) {
-
-        boolean alreadyExists = purchaseRepository.existsByUserIdAndCourseId(userId, courseId);
-        if (alreadyExists) {
-            return "Already purchased";
-        }
-
-        UserCoursePurchase ucp = new UserCoursePurchase();
-        User user = userRepository.findById(userId).orElseThrow();
-        Course course = courseRepository.findById(courseId).orElseThrow();
-
-        ucp.setUser(user);
-        ucp.setCourse(course);
-
-        purchaseRepository.save(ucp);
-
-        // --- Unlock first module and first 3 videos for the user ---
-        List<Module> modules = moduleRepository.findByCourseId(courseId);
-        if (!modules.isEmpty()) {
-            Module firstModule = modules.get(0);
-
-            // create or update module progress (unlocked)
-            UserModuleProgress ump = userModuleProgressRepository.findByUserAndModule(user, firstModule)
-                    .orElseGet(() -> {
-                        UserModuleProgress nm = new UserModuleProgress();
-                        nm.setUser(user);
-                        nm.setModule(firstModule);
-                        return nm;
-                    });
-            ump.setUnlocked(true);
-            ump.setUnlockedOn(new Date());
-            userModuleProgressRepository.save(ump);
-
-            // unlock first 3 videos (or fewer if module has fewer videos)
-            List<Video> videos = videoRepository.findByModuleId(firstModule.getId());
-            int toUnlock = Math.min(3, videos.size());
-            for (int i = 0; i < toUnlock; i++) {
-                Video v = videos.get(i);
-                UserVideoProgress uvp = userVideoProgressRepository.findByUserAndVideo(user, v)
-                        .orElseGet(() -> {
-                            UserVideoProgress nv = new UserVideoProgress();
-                            nv.setUser(user);
-                            nv.setVideo(v);
-                            return nv;
-                        });
-                uvp.setUnlocked(true);
-                uvp.setUnlockedOn(new Date());
-                userVideoProgressRepository.save(uvp);
-            }
-        }
-
-        return "Purchase successful";
+@Transactional
+public String purchaseCourse(Long userId, Long courseId) {
+    boolean alreadyExists = purchaseRepository.existsByUserIdAndCourseId(userId, courseId);
+    if (alreadyExists) {
+        return "Already purchased";
     }
 
+    User user = userRepository.findById(userId).orElseThrow();
+    Course course = courseRepository.findById(courseId).orElseThrow();
+
+    UserCoursePurchase ucp = new UserCoursePurchase();
+    ucp.setUser(user);
+    ucp.setCourse(course);
+
+    purchaseRepository.save(ucp);
+
+    // ✅ ADD THIS: Mark user as NOT new after purchase
+    if (user.getIsNewUser() != null && user.getIsNewUser() == 1) {
+        user.setIsNewUser(0); // Set to 0 (false)
+        userRepository.save(user);
+        logger.info("✅ User {} marked as NOT new after purchasing course: {}", user.getId(), course.getTitle());
+    }
+
+    // --- Unlock first module and first 3 videos for the user ---
+    List<Module> modules = moduleRepository.findByCourseId(courseId);
+    if (!modules.isEmpty()) {
+        Module firstModule = modules.get(0);
+
+        // create or update module progress (unlocked)
+        UserModuleProgress ump = userModuleProgressRepository.findByUserAndModule(user, firstModule)
+                .orElseGet(() -> {
+                    UserModuleProgress nm = new UserModuleProgress();
+                    nm.setUser(user);
+                    nm.setModule(firstModule);
+                    return nm;
+                });
+        ump.setUnlocked(true);
+        ump.setUnlockedOn(new Date());
+        userModuleProgressRepository.save(ump);
+
+        // unlock first 3 videos (or fewer if module has fewer videos)
+        List<Video> videos = videoRepository.findByModuleId(firstModule.getId());
+        int toUnlock = Math.min(3, videos.size());
+        for (int i = 0; i < toUnlock; i++) {
+            Video v = videos.get(i);
+            UserVideoProgress uvp = userVideoProgressRepository.findByUserAndVideo(user, v)
+                    .orElseGet(() -> {
+                        UserVideoProgress nv = new UserVideoProgress();
+                        nv.setUser(user);
+                        nv.setVideo(v);
+                        return nv;
+                    });
+            uvp.setUnlocked(true);
+            uvp.setUnlockedOn(new Date());
+            userVideoProgressRepository.save(uvp);
+        }
+    }
+
+    return "Purchase successful";
+}
 
     /**
      * Return courses for user with transient flags applied so frontend can render locked/unlocked/completed state.
@@ -952,6 +960,7 @@ public List<Course> getCoursesForUser(Long userId) {
                 nv.setVideo(current);
                 return nv;
             });
+            
         currentProgress.setUnlocked(true);
         currentProgress.setCompleted(true);
         currentProgress.setCompletedOn(new Date());

@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -29,4 +30,23 @@ public interface UserVideoProgressRepository extends JpaRepository<UserVideoProg
     List<UserVideoProgress> findByUserId(Long userId);
     List<UserVideoProgress> findByUserIdAndCompletedTrue(Long userId);
     List<UserVideoProgress> findByVideoId(Long videoId);
+
+
+    // NEW METHOD for streak functionality - add this with your other methods
+@Query("SELECT uvp FROM UserVideoProgress uvp " +
+       "JOIN uvp.video v " +
+       "JOIN v.module m " +
+       "JOIN m.course c " +
+       "WHERE uvp.user.id = :userId " +
+       "AND c.id = :courseId " +
+       "AND uvp.lastUpdatedAt >= :startDateTime " +
+       "AND uvp.lastUpdatedAt < :endDateTime " +
+       "AND uvp.watchedSeconds > 0 " +
+       "ORDER BY uvp.lastUpdatedAt DESC")
+List<UserVideoProgress> findByUserIdAndCourseIdAndDateRange(
+    @Param("userId") Long userId,
+    @Param("courseId") Long courseId,
+    @Param("startDateTime") LocalDateTime startDateTime,
+    @Param("endDateTime") LocalDateTime endDateTime
+);
 }

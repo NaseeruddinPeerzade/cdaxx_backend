@@ -749,11 +749,11 @@ public ResponseEntity<?> getUserStreakOverview(@RequestParam Long userId) {
     }
 }
 
-@GetMapping("/streak/day-details")
+@GetMapping("/streak/day/{courseId}")
 public ResponseEntity<?> getDayDetails(
+        @PathVariable Long courseId,
         @RequestParam Long userId,
-        @RequestParam Long courseId,
-        @RequestParam String date) { // format: YYYY-MM-DD
+        @RequestParam String date) {
     
     try {
         LocalDate localDate = LocalDate.parse(date);
