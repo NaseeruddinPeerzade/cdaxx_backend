@@ -1,20 +1,19 @@
-# Java 17 (Spring Boot compatible)
-FROM eclipse-temurin:17-jdk
+FROM maven:3.9.6-eclipse-temurin-17 AS build
 
-# App ka working directory
 WORKDIR /app
 
-# Saara project copy karo
-COPY . .
+COPY pom.xml .
+COPY src ./src
 
-# Maven wrapper ko executable banao
-RUN chmod +x mvnw
+RUN mvn clean package -DskipTests
 
-# Build Spring Boot app
-RUN ./mvnw clean package -DskipTests
 
-# Render PORT expose
+FROM eclipse-temurin:17-jre
+
+WORKDIR /app
+
+COPY --from=build /app/target/*.jar app.jar
+
 EXPOSE 8080
 
-# App run command
-CMD ["java", "-jar", "target/*.jar"]
+CMD ["java", "-jar", "app.jar"]
