@@ -564,7 +564,7 @@ public boolean unlockNextModuleAfterPassing(
     Course course = courseRepository.findById(courseId)
             .orElseThrow(() -> new RuntimeException("Course not found"));
 
-    // ✅ Fetch modules FIRST
+    // ✅ Fetch modules FIRST (now they come ordered from repository)
     List<Module> modules = moduleRepository.findByCourseId(courseId);
 
     if (modules.isEmpty()) {
@@ -572,12 +572,11 @@ public boolean unlockNextModuleAfterPassing(
         return false;
     }
 
-    // ✅ SORT modules properly
-    modules.sort(Comparator.comparing(Module::getId));
-
+    // ✅ Debug logging - show module order
     System.out.println("🔓 Modules order:");
     for (int i = 0; i < modules.size(); i++) {
-        System.out.println("   [" + i + "] moduleId=" + modules.get(i).getId());
+        System.out.println("   [" + i + "] moduleId=" + modules.get(i).getId() + 
+                         ", title=" + modules.get(i).getTitle());
     }
 
     // ✅ Find current module index
@@ -947,58 +946,105 @@ public List<Course> getCoursesForUser(Long userId) {
     /**
      * Mark a video completed & unlock next video (if exists). If current is last, unlock module assessment.
      */
-    @Transactional
-    public boolean completeVideoAndUnlockNext(Long userId, Long courseId, Long moduleId, Long videoId) {
-        User user = userRepository.findById(userId).orElseThrow();
-        Video current = videoRepository.findById(videoId).orElseThrow();
+@Transactional
+public boolean completeVideoAndUnlockNext(Long userId, Long courseId, Long moduleId, Long videoId) {
+    User user = userRepository.findById(userId).orElseThrow();
+    Video current = videoRepository.findById(videoId).orElseThrow();
 
-        // mark current as completed
-        UserVideoProgress currentProgress = userVideoProgressRepository.findByUserAndVideo(user, current)
-            .orElseGet(() -> {
-                UserVideoProgress nv = new UserVideoProgress();
-                nv.setUser(user);
-                nv.setVideo(current);
-                return nv;
-            });
-            
-        currentProgress.setUnlocked(true);
-        currentProgress.setCompleted(true);
-        currentProgress.setCompletedOn(new Date());
-        userVideoProgressRepository.save(currentProgress);
+    // mark current as completed
+    UserVideoProgress currentProgress = userVideoProgressRepository.findByUserAndVideo(user, current)
+        .orElseGet(() -> {
+            UserVideoProgress nv = new UserVideoProgress();
+            nv.setUser(user);
+            nv.setVideo(current);
+            return nv;
+        });
+        
+    currentProgress.setUnlocked(true);
+    currentProgress.setCompleted(true);
+    currentProgress.setCompletedOn(new Date());
+    userVideoProgressRepository.save(currentProgress);
 
-        // Find module and its videos (fetch fresh list)
-        Module module = moduleRepository.findById(moduleId).orElseThrow();
-        List<Video> moduleVideos = videoRepository.findByModuleId(module.getId());
+    // Find module and its videos (fetch fresh list)
+    Module module = moduleRepository.findById(moduleId).orElseThrow();
+    List<Video> moduleVideos = videoRepository.findByModuleId(module.getId());
 
-        int idx = -1;
-        for (int i = 0; i < moduleVideos.size(); i++) {
-            if (moduleVideos.get(i).getId().equals(current.getId())) {
-                idx = i;
-                break;
-            }
+    int idx = -1;
+    for (int i = 0; i < moduleVideos.size(); i++) {
+        if (moduleVideos.get(i).getId().equals(current.getId())) {
+            idx = i;
+            break;
         }
-
-        if (idx >= 0 && idx + 1 < moduleVideos.size()) {
-            Video next = moduleVideos.get(idx + 1);
-            UserVideoProgress nextProgress = userVideoProgressRepository.findByUserAndVideo(user, next)
-                    .orElseGet(() -> {
-                        UserVideoProgress nv = new UserVideoProgress();
-                        nv.setUser(user);
-                        nv.setVideo(next);
-                        return nv;
-                    });
-            if (!nextProgress.isUnlocked()) {
-                nextProgress.setUnlocked(true);
-                nextProgress.setUnlockedOn(new Date());
-                userVideoProgressRepository.save(nextProgress);
-            }
-        } else {
-            // last video -> unlock assessment for this module for the user
-            unlockAssessmentForModule(userId, moduleId);
-        }
-
-        return true;
     }
+
+    // 1. Unlock next video if exists
+    if (idx >= 0 && idx + 1 < moduleVideos.size()) {
+        Video next = moduleVideos.get(idx + 1);
+        UserVideoProgress nextProgress = userVideoProgressRepository.findByUserAndVideo(user, next)
+                .orElseGet(() -> {
+                    UserVideoProgress nv = new UserVideoProgress();
+                    nv.setUser(user);
+                    nv.setVideo(next);
+                    return nv;
+                });
+        if (!nextProgress.isUnlocked()) {
+            nextProgress.setUnlocked(true);
+            nextProgress.setUnlockedOn(new Date());
+            userVideoProgressRepository.save(nextProgress);
+        }
+    }
+    
+    // 2. Check if ALL videos in module are completed
+    boolean allVideosCompleted = checkIfAllVideosCompleted(userId, moduleId);
+    
+    // 3. Only unlock assessment if ALL videos are completed
+    if (allVideosCompleted) {
+        unlockAssessmentForModule(userId, moduleId);
+        logger.info("✅ All videos completed in module {}, assessment unlocked", moduleId);
+    } else {
+        logger.info("ℹ️ Module {}: {}/{} videos completed, assessment remains locked", 
+                   moduleId, getCompletedVideosCount(userId, moduleId), moduleVideos.size());
+    }
+
+    return true;
+}
+
+/**
+ * Check if ALL videos in a module are completed by the user
+ */
+private boolean checkIfAllVideosCompleted(Long userId, Long moduleId) {
+    User user = userRepository.findById(userId).orElseThrow();
+    List<Video> moduleVideos = videoRepository.findByModuleId(moduleId);
+    
+    if (moduleVideos.isEmpty()) {
+        return false;
+    }
+    
+    for (Video video : moduleVideos) {
+        Optional<UserVideoProgress> progress = userVideoProgressRepository.findByUserAndVideo(user, video);
+        if (progress.isEmpty() || !progress.get().isCompleted()) {
+            return false; // Found a video that's not completed
+        }
+    }
+    return true; // All videos completed
+}
+
+/**
+ * Get count of completed videos in a module
+ */
+private int getCompletedVideosCount(Long userId, Long moduleId) {
+    User user = userRepository.findById(userId).orElseThrow();
+    List<Video> moduleVideos = videoRepository.findByModuleId(moduleId);
+    
+    int completedCount = 0;
+    for (Video video : moduleVideos) {
+        Optional<UserVideoProgress> progress = userVideoProgressRepository.findByUserAndVideo(user, video);
+        if (progress.isPresent() && progress.get().isCompleted()) {
+            completedCount++;
+        }
+    }
+    return completedCount;
+}
 
 
     /**

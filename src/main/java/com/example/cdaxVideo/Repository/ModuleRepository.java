@@ -8,9 +8,10 @@ import org.springframework.data.repository.query.Param;
 import java.util.List;
 
 public interface ModuleRepository extends JpaRepository<Module, Long> {
-    List<Module> findByCourseId(Long courseId);
+    // ✅ ORDER BY id instead of displayOrder
+    @Query("SELECT m FROM Module m WHERE m.course.id = :courseId ORDER BY m.id ASC")
+    List<Module> findByCourseId(@Param("courseId") Long courseId);
     
-    // ADD THIS: Count modules in a course
     @Query("SELECT COUNT(m) FROM Module m WHERE m.course.id = :courseId")
     Long countByCourseId(@Param("courseId") Long courseId);
 }

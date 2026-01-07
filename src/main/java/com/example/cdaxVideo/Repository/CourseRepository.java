@@ -9,15 +9,25 @@ import java.util.Optional;
 
 public interface CourseRepository extends JpaRepository<Course, Long> {
 
-    // Fetch only courses + modules (not videos here)
-    @Query("SELECT DISTINCT c FROM Course c LEFT JOIN FETCH c.modules")
+    // ✅ Fetch only courses + modules (with ORDER BY)
+    @Query("SELECT DISTINCT c FROM Course c LEFT JOIN FETCH c.modules m ORDER BY m.id ASC")
     List<Course> findAllWithModules();
 
-    // Fetch single course + modules (not videos here)
-    @Query("SELECT DISTINCT c FROM Course c LEFT JOIN FETCH c.modules WHERE c.id = :id")
+    // ✅ Fetch single course + modules (with ORDER BY)
+    @Query("SELECT DISTINCT c FROM Course c LEFT JOIN FETCH c.modules m WHERE c.id = :id ORDER BY m.id ASC")
     Optional<Course> findByIdWithModules(Long id);
 
-    List<Course> findBySubscribedUsers_Id(Long userId);
+    // ✅ FIXED: Use EXISTS subquery for collection navigation
+    @Query("SELECT DISTINCT c FROM Course c " +
+           "LEFT JOIN FETCH c.modules m " +
+           "WHERE EXISTS (" +
+           "  SELECT 1 FROM c.subscribedUsers u WHERE u.id = :userId" +
+           ") " +
+           "ORDER BY m.id ASC")
+    List<Course> findBySubscribedUsers_Id(@Param("userId") Long userId);
+
+    // Alternative: Simple Spring Data JPA method (if you don't need modules fetched)
+    List<Course> findBySubscribedUsersId(Long userId);
 
     List<Course> findByTitleContainingIgnoreCase(String title);
 
