@@ -241,32 +241,41 @@ public ResponseEntity<Map<String, Object>> getCourse(
             return ResponseEntity.ok(courses);
         }
         
-        // In CourseController.java - add this method
+// In CourseController.java
 @GetMapping("/courses/public")
-public ResponseEntity<Map<String, Object>> getPublicCourses(
-        @RequestParam(required = false) String search
-) {
-    List<Course> courses;
-
-    if (search != null && !search.trim().isEmpty()) {
-        courses = courseService.enhancedSearch(search);
-    } else {
-        courses = courseService.getAllCoursesWithModulesAndVideos();
-    }
-
-    // Clear any purchase/subscription data for public access
-    for (Course course : courses) {
-        course.setPurchased(false);
-        // Hide any sensitive data if needed
-    }
-
-    Map<String, Object> response = new HashMap<>();
-    response.put("data", courses);
-    response.put("userAuthenticated", false);
+public ResponseEntity<Map<String, Object>> getPublicCourses() {
+    System.out.println("\n📚 GET /api/courses/public called");
     
-    return ResponseEntity.ok(response);
+    try {
+        // Get courses from service
+        List<Course> courses = courseService.getPublicCourses();
+        
+        // Create response object
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("data", courses);
+        response.put("total", courses.size());
+        response.put("userAuthenticated", false);
+        response.put("message", "Public courses retrieved successfully");
+        response.put("timestamp", new Date());
+        
+        System.out.println("   ✅ Returning " + courses.size() + " public courses");
+        return ResponseEntity.ok(response);
+        
+    } catch (Exception e) {
+        System.out.println("❌ Error in /courses/public endpoint: " + e.getMessage());
+        e.printStackTrace();
+        
+        // Error response
+        Map<String, Object> errorResponse = new HashMap<>();
+        errorResponse.put("success", false);
+        errorResponse.put("message", "Failed to retrieve public courses: " + e.getMessage());
+        errorResponse.put("userAuthenticated", false);
+        errorResponse.put("timestamp", new Date());
+        
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+    }
 }
-
 
         // ---------------------- MODULE APIs ----------------------
         @PostMapping("/modules")

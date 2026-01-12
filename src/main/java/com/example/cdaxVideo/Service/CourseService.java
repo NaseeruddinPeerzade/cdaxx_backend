@@ -92,6 +92,38 @@ public class CourseService {
         return optionalCourse;
     }
 
+// In CourseService.java
+public List<Course> getPublicCourses() {
+    System.out.println("📚 CourseService.getPublicCourses() called");
+    
+    try {
+        // Get all courses with basic information (without sensitive data)
+        List<Course> courses = courseRepository.findAll();
+        
+        // Clear any user-specific data for public access
+        for (Course course : courses) {
+            // Reset purchase/subscription status
+            course.setPurchased(false);
+            
+            // You might want to clear other sensitive data if needed
+            // course.setPrice(0.0); // Optionally hide pricing
+            // course.setDiscountPercentage(0); // Optionally hide discounts
+            
+            // Keep only basic information for public view
+            System.out.println("   ├─ Course: " + course.getTitle() + 
+                             " (ID: " + course.getId() + ")");
+        }
+        
+        System.out.println("   ✅ Returning " + courses.size() + " public courses");
+        return courses;
+        
+    } catch (Exception e) {
+        System.out.println("❌ Error in getPublicCourses: " + e.getMessage());
+        e.printStackTrace();
+        return new ArrayList<>(); // Return empty list on error
+    }
+}
+    
     // FIXED: Enhanced search with keyword support
     public List<Course> enhancedSearch(String keyword) {
         if (keyword == null || keyword.trim().isEmpty()) {

@@ -39,10 +39,10 @@ public class SecurityConfig {
             .exceptionHandling(handling -> handling.authenticationEntryPoint(jwtAuthenticationEntryPoint))
             .sessionManagement(management -> management.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(authz -> authz
-                // Public endpoints
+                // Public endpoints - NO AUTH REQUIRED
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 
-                // ✅ FIXED: Only permitAll for login/register, profile endpoints need auth
+                // Auth endpoints - public
                 .requestMatchers("/api/auth/login").permitAll()
                 .requestMatchers("/api/auth/register").permitAll()
                 .requestMatchers("/api/auth/jwt/login").permitAll()
@@ -55,21 +55,41 @@ public class SecurityConfig {
                 .requestMatchers("/api/auth/firstName").permitAll()
                 .requestMatchers("/api/auth/getUserByEmail").permitAll()
                 
-                // Public course endpoints
+                // ✅ CRITICAL FIX: Public course endpoints with ALL HTTP METHODS
                 .requestMatchers("/api/courses/public/**").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/courses").permitAll() // Allow browsing courses without auth
-                .requestMatchers(HttpMethod.GET, "/api/courses/{id}").permitAll() // Allow viewing course details
+                .requestMatchers(HttpMethod.GET, "/api/courses").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/courses/*").permitAll() // Single wildcard
+                .requestMatchers(HttpMethod.GET, "/api/courses/**").permitAll() // Double wildcard
                 
                 // Public video endpoints
                 .requestMatchers("/api/videos/public/**").permitAll()
                 
-                // ✅ ADDED: Legacy endpoints without JWT (for backward compatibility)
+                // Legacy endpoints
                 .requestMatchers("/api/dashboard/public").permitAll()
+                
+                // Swagger/OpenAPI
+                .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
+                
+                // Actuator
+                .requestMatchers("/actuator/health", "/actuator/info").permitAll()
+                
+                // ================= PROTECTED ENDPOINTS =================
+                // User profile - REQUIRE AUTH
+                .requestMatchers("/api/auth/profile/**").authenticated()
+                .requestMatchers("/api/auth/jwt/me").authenticated()
+                .requestMatchers("/api/auth/change-password").authenticated()
+                
+                // Courses - Mixed (some public, some protected)
+                .requestMatchers("/api/courses/subscribed/**").authenticated()
+                .requestMatchers("/api/courses/user/**").authenticated()
+                .requestMatchers(HttpMethod.POST, "/api/courses").authenticated()
+                .requestMatchers(HttpMethod.PUT, "/api/courses/**").authenticated()
+                .requestMatchers(HttpMethod.DELETE, "/api/courses/**").authenticated()
+                .requestMatchers("/api/courses/{id}/enroll").authenticated()
                 
                 // Video progress and completion - REQUIRE AUTH
                 .requestMatchers(HttpMethod.POST, "/api/videos/*/progress").authenticated()
                 .requestMatchers(HttpMethod.POST, "/api/videos/*/complete").authenticated()
-                .requestMatchers(HttpMethod.GET, "/api/courses/public").permitAll()
                 
                 // Assessment endpoints - REQUIRE AUTH
                 .requestMatchers("/api/course/assessment/**").authenticated()
@@ -81,25 +101,9 @@ public class SecurityConfig {
                 .requestMatchers("/api/favorites/**").authenticated()
                 .requestMatchers("/api/cart/**").authenticated()
                 
-                // Courses - Mixed
-                .requestMatchers("/api/courses/subscribed/**").authenticated()
-                .requestMatchers("/api/courses/user/**").authenticated()
-                .requestMatchers("/api/courses/{id}/enroll").authenticated()
-                
-                // User profile - REQUIRE AUTH
-                .requestMatchers("/api/auth/profile/**").authenticated()
-                .requestMatchers("/api/auth/jwt/me").authenticated()
-                .requestMatchers("/api/auth/change-password").authenticated()
-                
                 // User data - REQUIRE AUTH
                 .requestMatchers("/api/users/**").authenticated()
                 
-                // Swagger/OpenAPI
-                .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
-                
-                // Actuator
-                .requestMatchers("/actuator/health", "/actuator/info").permitAll()
-
                 // All other requests require authentication
                 .anyRequest().authenticated()
             );
