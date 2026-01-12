@@ -240,6 +240,33 @@ public ResponseEntity<Map<String, Object>> getCourse(
             List<Course> courses = courseService.getSubscribedCourses(userId);
             return ResponseEntity.ok(courses);
         }
+        
+        // In CourseController.java - add this method
+@GetMapping("/courses/public")
+public ResponseEntity<Map<String, Object>> getPublicCourses(
+        @RequestParam(required = false) String search
+) {
+    List<Course> courses;
+
+    if (search != null && !search.trim().isEmpty()) {
+        courses = courseService.enhancedSearch(search);
+    } else {
+        courses = courseService.getAllCoursesWithModulesAndVideos();
+    }
+
+    // Clear any purchase/subscription data for public access
+    for (Course course : courses) {
+        course.setPurchased(false);
+        // Hide any sensitive data if needed
+    }
+
+    Map<String, Object> response = new HashMap<>();
+    response.put("data", courses);
+    response.put("userAuthenticated", false);
+    
+    return ResponseEntity.ok(response);
+}
+
 
         // ---------------------- MODULE APIs ----------------------
         @PostMapping("/modules")

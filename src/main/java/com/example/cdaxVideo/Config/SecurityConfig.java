@@ -41,34 +41,66 @@ public class SecurityConfig {
             .authorizeHttpRequests(authz -> authz
                 // Public endpoints
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                .requestMatchers("/api/auth/**").permitAll()
+                
+                // ✅ FIXED: Only permitAll for login/register, profile endpoints need auth
+                .requestMatchers("/api/auth/login").permitAll()
+                .requestMatchers("/api/auth/register").permitAll()
+                .requestMatchers("/api/auth/jwt/login").permitAll()
+                .requestMatchers("/api/auth/jwt/register").permitAll()
+                .requestMatchers("/api/auth/jwt/validate").permitAll()
+                .requestMatchers("/api/auth/jwt/refresh").permitAll()
+                .requestMatchers("/api/auth/forgot-password").permitAll()
+                .requestMatchers("/api/auth/reset-password").permitAll()
+                .requestMatchers("/api/auth/verify-email").permitAll()
+                .requestMatchers("/api/auth/firstName").permitAll()
+                .requestMatchers("/api/auth/getUserByEmail").permitAll()
+                
+                // Public course endpoints
                 .requestMatchers("/api/courses/public/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/courses").permitAll() // Allow browsing courses without auth
+                .requestMatchers(HttpMethod.GET, "/api/courses/{id}").permitAll() // Allow viewing course details
+                
+                // Public video endpoints
                 .requestMatchers("/api/videos/public/**").permitAll()
                 
-                // Video progress and completion
+                // ✅ ADDED: Legacy endpoints without JWT (for backward compatibility)
+                .requestMatchers("/api/dashboard/public").permitAll()
+                
+                // Video progress and completion - REQUIRE AUTH
                 .requestMatchers(HttpMethod.POST, "/api/videos/*/progress").authenticated()
                 .requestMatchers(HttpMethod.POST, "/api/videos/*/complete").authenticated()
+                .requestMatchers(HttpMethod.GET, "/api/courses/public").permitAll()
                 
-                // ✅ ADD ASSESSMENT ENDPOINTS HERE
-                // Assessment endpoints - ALL require authentication
+                // Assessment endpoints - REQUIRE AUTH
                 .requestMatchers("/api/course/assessment/**").authenticated()
                 .requestMatchers("/api/assessments/**").authenticated()
                 .requestMatchers("/api/modules/*/assessments").authenticated()
                 .requestMatchers("/api/courses/*/assessments").authenticated()
                 
-                // Favorites and cart
+                // Favorites and cart - REQUIRE AUTH
                 .requestMatchers("/api/favorites/**").authenticated()
                 .requestMatchers("/api/cart/**").authenticated()
                 
-                // Courses
+                // Courses - Mixed
                 .requestMatchers("/api/courses/subscribed/**").authenticated()
+                .requestMatchers("/api/courses/user/**").authenticated()
+                .requestMatchers("/api/courses/{id}/enroll").authenticated()
+                
+                // User profile - REQUIRE AUTH
+                .requestMatchers("/api/auth/profile/**").authenticated()
+                .requestMatchers("/api/auth/jwt/me").authenticated()
+                .requestMatchers("/api/auth/change-password").authenticated()
+                
+                // User data - REQUIRE AUTH
+                .requestMatchers("/api/users/**").authenticated()
                 
                 // Swagger/OpenAPI
                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
                 
-                // All other requests require authentication
+                // Actuator
                 .requestMatchers("/actuator/health", "/actuator/info").permitAll()
 
+                // All other requests require authentication
                 .anyRequest().authenticated()
             );
         

@@ -132,25 +132,26 @@ public Map<String, Object> loginUserWithJWT(String email, String password) {
     ));
 
     // Generate JWT access token
-String accessToken = jwtTokenUtil.generateToken(user.getEmail(), Map.of(
-        "role", user.getRole(),
-        "userId", user.getId()
-));
+    String accessToken = jwtTokenUtil.generateToken(user.getEmail(), Map.of(
+            "role", user.getRole(),
+            "userId", user.getId()
+    ));
 
-// Generate refresh token (random string or JWT)
-String refreshToken = UUID.randomUUID().toString(); // or jwtTokenUtil.generateToken(user.getEmail())
-user.setRefreshToken(refreshToken);
-userRepository.save(user);
+    // Generate refresh token (random string or JWT)
+    String refreshToken = UUID.randomUUID().toString(); // or jwtTokenUtil.generateToken(user.getEmail())
+    user.setRefreshToken(refreshToken);
+    userRepository.save(user);
 
-// Return both tokens
-Map<String, Object> response = new HashMap<>();
-response.put("accessToken", accessToken);
-response.put("refreshToken", refreshToken);
-response.put("user", new UserDTO(user));
-return response;
-
+    // ✅ FIX: Add "success": true to the response
+    Map<String, Object> response = new HashMap<>();
+    response.put("success", true); // ← ADD THIS LINE
+    response.put("accessToken", accessToken);
+    response.put("refreshToken", refreshToken);
+    response.put("user", new UserDTO(user));
+    
+    System.out.println("✅ [DEBUG] Login successful, returning response with keys: " + response.keySet());
+    return response;
 }
-
 
 
     // ==================== ORIGINAL METHODS ====================
@@ -423,9 +424,5 @@ public UserDTO getFullUserProfile(String email) {
             return basicInfo;
         }
     }
-
-
-
-    
 
 }
