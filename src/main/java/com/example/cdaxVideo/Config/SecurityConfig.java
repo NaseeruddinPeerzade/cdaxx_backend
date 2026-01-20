@@ -126,6 +126,11 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.PUT, "/api/courses/{id}").authenticated()
                 .requestMatchers(HttpMethod.DELETE, "/api/courses/{id}").authenticated()
                 .requestMatchers("/api/courses/{id}/enroll").authenticated()
+
+
+                // Streak endpoints (ALL require authentication)
+                .requestMatchers(HttpMethod.GET, "/api/streak/**").authenticated()
+                .requestMatchers(HttpMethod.GET, "/api/profile/streak").authenticated()
                 
                 // Video progress
                 .requestMatchers(HttpMethod.POST, "/api/videos/{id}/progress").authenticated()
