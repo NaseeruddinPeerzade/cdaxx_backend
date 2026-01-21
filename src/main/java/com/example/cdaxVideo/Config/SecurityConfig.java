@@ -1,3 +1,8 @@
+
+// ============================================
+// FILE 1: SecurityConfig.java
+// ============================================
+
 package com.example.cdaxVideo.Config;
 
 import org.springframework.context.annotation.Bean;
@@ -32,191 +37,139 @@ public class SecurityConfig {
         this.jwtRequestFilter = jwtRequestFilter;
     }
     
-@Bean
-public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-    http
-        // Enable CORS with custom configuration
-        .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-        
-        // Disable CSRF for JWT (REST API)
-        .csrf(csrf -> csrf.disable())
-        
-        // Configure exception handling
-        .exceptionHandling(handling -> handling
-            .authenticationEntryPoint(jwtAuthenticationEntryPoint))
-        
-        // Make session stateless
-        .sessionManagement(management -> management
-            .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-        
-        // Configure authorization
-        .authorizeHttpRequests(authz -> authz
-            // =============== PUBLIC ENDPOINTS ===============
-            // Allow all OPTIONS requests (CORS preflight)
-            .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-            
-            // Debug endpoints
-            .requestMatchers("/api/debug/**").permitAll()
-            
-            // Authentication endpoints
-            .requestMatchers(
-                "/api/auth/login",
-                "/api/auth/register",
-                "/api/auth/jwt/login",
-                "/api/auth/jwt/register",
-                "/api/auth/jwt/validate",
-                "/api/auth/jwt/refresh",
-                "/api/auth/forgot-password",
-                "/api/auth/reset-password",
-                "/api/auth/verify-email",
-                "/api/auth/firstName",
-                "/api/auth/getUserByEmail"
-            ).permitAll()
-            
-            // Public file access
-            .requestMatchers("/uploads/**").permitAll()
-            
-            // Public course endpoints
-            .requestMatchers("/api/courses/public/**").permitAll()
-            .requestMatchers(HttpMethod.GET, "/api/courses").permitAll()
-            .requestMatchers(HttpMethod.GET, "/api/courses/{id}").permitAll()
-            .requestMatchers(HttpMethod.GET, "/api/modules/**").permitAll()
-            .requestMatchers(HttpMethod.GET, "/api/videos/**").permitAll()
-            
-            // =============== ASSESSMENT ENDPOINTS ===============
-            // ALL assessment GET endpoints public (for testing)
-            .requestMatchers(HttpMethod.GET, "/api/assessments/**").permitAll()
-            .requestMatchers(HttpMethod.GET, "/api/modules/**/assessments").permitAll()
-            .requestMatchers(HttpMethod.GET, "/api/assessments/**/questions").permitAll()
-            .requestMatchers(HttpMethod.GET, "/api/course/assessment/**").permitAll()
-            .requestMatchers(HttpMethod.GET, "/api/questions/**").permitAll()
-            
-            // Public video endpoints
-            .requestMatchers("/api/videos/public/**").permitAll()
-            
-            // Legacy public endpoints
-            .requestMatchers("/api/dashboard/public").permitAll()
-            
-            // Swagger/OpenAPI
-            .requestMatchers(
-                "/swagger-ui/**",
-                "/v3/api-docs/**",
-                "/swagger-ui.html",
-                "/webjars/**",
-                "/swagger-resources/**"
-            ).permitAll()
-            
-            // Actuator endpoints
-            .requestMatchers("/actuator/health", "/actuator/info").permitAll()
-            
-            // =============== PROTECTED ENDPOINTS ===============
-            // Assessment POST endpoints require auth
-            .requestMatchers(HttpMethod.POST, "/api/assessments/**").authenticated()
-            .requestMatchers(HttpMethod.POST, "/api/modules/**/assessments").authenticated()
-            .requestMatchers(HttpMethod.POST, "/api/questions/**").authenticated()
-            .requestMatchers(HttpMethod.POST, "/api/course/assessment/submit").authenticated()
-            .requestMatchers(HttpMethod.POST, "/api/course/assessment/**").authenticated()
-            
-            // User profile endpoints
-            .requestMatchers("/api/auth/profile/**").authenticated()
-            .requestMatchers("/api/auth/jwt/me").authenticated()
-            .requestMatchers("/api/auth/change-password").authenticated()
-            
-            // Course management
-            .requestMatchers("/api/courses/subscribed/**").authenticated()
-            .requestMatchers("/api/courses/user/**").authenticated()
-            .requestMatchers(HttpMethod.POST, "/api/courses").authenticated()
-            .requestMatchers(HttpMethod.PUT, "/api/courses/{id}").authenticated()
-            .requestMatchers(HttpMethod.DELETE, "/api/courses/{id}").authenticated()
-            .requestMatchers("/api/courses/{id}/enroll").authenticated()
+    @Bean
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        http
+            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+            .csrf(csrf -> csrf.disable())
+            .exceptionHandling(handling -> handling
+                .authenticationEntryPoint(jwtAuthenticationEntryPoint))
+            .sessionManagement(management -> management
+                .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .authorizeHttpRequests(authz -> authz
+                // =============== PUBLIC ENDPOINTS ===============
+                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                
+                // Debug
+                .requestMatchers("/api/debug/**").permitAll()
+                
+                // Auth endpoints
+                .requestMatchers(
+                    "/api/auth/login",
+                    "/api/auth/register",
+                    "/api/auth/jwt/login",
+                    "/api/auth/jwt/register",
+                    "/api/auth/jwt/validate",
+                    "/api/auth/jwt/refresh",
+                    "/api/auth/forgot-password",
+                    "/api/auth/reset-password",
+                    "/api/auth/verify-email",
+                    "/api/auth/firstName",
+                    "/api/auth/getUserByEmail"
+                ).permitAll()
+                
+                // Public files
+                .requestMatchers("/uploads/**").permitAll()
+                
+                // Public course browsing (GET only)
+                .requestMatchers(HttpMethod.GET, "/api/courses").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/courses/{id}").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/modules/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/videos/**").permitAll()
+                
+                // Swagger
+                .requestMatchers(
+                    "/swagger-ui/**",
+                    "/v3/api-docs/**",
+                    "/swagger-ui.html",
+                    "/webjars/**",
+                    "/swagger-resources/**"
+                ).permitAll()
+                
+                // Actuator
+                .requestMatchers("/actuator/health", "/actuator/info").permitAll()
+                
+                // =============== PROTECTED ENDPOINTS ===============
+                // 🔒 ALL ASSESSMENT ENDPOINTS REQUIRE AUTH
+                .requestMatchers("/api/assessments/**").authenticated()
+                .requestMatchers("/api/modules/**/assessments").authenticated()
+                .requestMatchers("/api/course/assessment/**").authenticated()
+                .requestMatchers("/api/questions/**").authenticated()
+                
+                // User profile
+                .requestMatchers("/api/auth/profile/**").authenticated()
+                .requestMatchers("/api/auth/jwt/me").authenticated()
+                .requestMatchers("/api/auth/change-password").authenticated()
+                
+                // Course management
+                .requestMatchers("/api/courses/subscribed/**").authenticated()
+                .requestMatchers("/api/courses/user/**").authenticated()
+                .requestMatchers(HttpMethod.POST, "/api/courses").authenticated()
+                .requestMatchers(HttpMethod.PUT, "/api/courses/{id}").authenticated()
+                .requestMatchers(HttpMethod.DELETE, "/api/courses/{id}").authenticated()
+                .requestMatchers("/api/courses/{id}/enroll").authenticated()
 
-            // Streak endpoints (ALL require authentication)
-            .requestMatchers(HttpMethod.GET, "/api/streak/**").authenticated()
-            .requestMatchers(HttpMethod.GET, "/api/profile/streak").authenticated()
-            
-            // Video progress
-            .requestMatchers(HttpMethod.POST, "/api/videos/{id}/progress").authenticated()
-            .requestMatchers(HttpMethod.POST, "/api/videos/{id}/complete").authenticated()
-            
-            // User data
-            .requestMatchers("/api/favorites/**").authenticated()
-            .requestMatchers("/api/dashboard/**").authenticated()
-            .requestMatchers("/api/cart/**").authenticated()
-            .requestMatchers("/api/users/**").authenticated()
-            
-            // Purchase endpoints - FIXED THIS LINE:
-            .requestMatchers(HttpMethod.POST, "/api/purchase").authenticated()
-            .requestMatchers(HttpMethod.POST, "/api/modules/*/unlock-*").authenticated()  // <-- FIXED!
-            
-            // Default - all other requests require authentication
-            .anyRequest().authenticated()
-        );
-    
-    // Add JWT filter before Spring Security's authentication filter
-    http.addFilterBefore(jwtRequestFilter, UsernamePasswordAuthenticationFilter.class);
-    
-    return http.build();
-}
+                // Streak
+                .requestMatchers("/api/streak/**").authenticated()
+                .requestMatchers("/api/profile/streak").authenticated()
+                
+                // Video progress
+                .requestMatchers(HttpMethod.POST, "/api/videos/{id}/progress").authenticated()
+                .requestMatchers(HttpMethod.POST, "/api/videos/{id}/complete").authenticated()
+                
+                // User data
+                .requestMatchers("/api/favorites/**").authenticated()
+                .requestMatchers("/api/dashboard/**").authenticated()
+                .requestMatchers("/api/cart/**").authenticated()
+                .requestMatchers("/api/users/**").authenticated()
+                
+                // Purchase
+                .requestMatchers(HttpMethod.POST, "/api/purchase").authenticated()
+                .requestMatchers(HttpMethod.POST, "/api/modules/*/unlock-*").authenticated()
+                
+                // Default
+                .anyRequest().authenticated()
+            );
+        
+        http.addFilterBefore(jwtRequestFilter, UsernamePasswordAuthenticationFilter.class);
+        
+        return http.build();
+    }
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         
-        // Allow Railway and other domains
         configuration.setAllowedOriginPatterns(List.of(
-            // Local development
             "http://localhost:*",
             "http://127.0.0.1:*",
             "http://192.168.*:*",
-            
-            // Railway domains
             "https://*.up.railway.app",
             "https://*.railway.app",
-            
-            // Vercel domains
             "https://*.vercel.app",
-            
-            // Render domains
             "https://*.onrender.com",
-            
-            // Allow all for testing (be careful in production)
             "https://*",
             "http://*"
         ));
 
-        // Allowed HTTP methods
         configuration.setAllowedMethods(Arrays.asList(
             "GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH", "HEAD"
         ));
         
-        // Allowed headers
         configuration.setAllowedHeaders(Arrays.asList(
-            "Authorization",
-            "Content-Type",
-            "Accept",
-            "Origin",
-            "X-Requested-With",
-            "Access-Control-Request-Method",
-            "Access-Control-Request-Headers",
-            "X-CSRF-Token",
-            "Cache-Control",
-            "Pragma",
-            "x-auth-token"
+            "Authorization", "Content-Type", "Accept", "Origin",
+            "X-Requested-With", "Access-Control-Request-Method",
+            "Access-Control-Request-Headers", "X-CSRF-Token",
+            "Cache-Control", "Pragma", "x-auth-token"
         ));
         
-        // Exposed headers (visible to browser)
         configuration.setExposedHeaders(Arrays.asList(
-            "Authorization",
-            "Content-Disposition",
+            "Authorization", "Content-Disposition",
             "Access-Control-Allow-Origin",
-            "Access-Control-Allow-Credentials",
-            "x-auth-token"
+            "Access-Control-Allow-Credentials", "x-auth-token"
         ));
         
-        // Allow credentials (cookies, authorization headers)
         configuration.setAllowCredentials(true);
-        
-        // Cache preflight response for 1 hour
         configuration.setMaxAge(3600L);
         
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
