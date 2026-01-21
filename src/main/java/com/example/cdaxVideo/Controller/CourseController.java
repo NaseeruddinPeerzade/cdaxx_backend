@@ -17,13 +17,11 @@
     import com.example.cdaxVideo.Repository.UserCoursePurchaseRepository;
     import com.example.cdaxVideo.Service.CourseService;
     import com.example.cdaxVideo.Service.StreakService;
-    import com.example.cdaxVideo.DTO.StreakSummaryDTO;
-    import com.example.cdaxVideo.DTO.StreakDayDTO;
     import java.time.LocalDate;
+    import com.example.cdaxVideo.Entity.Assessment;
     import org.springframework.beans.factory.annotation.Autowired;
     import org.springframework.http.HttpStatus;
     import org.springframework.http.ResponseEntity;
-    import org.springframework.security.core.userdetails.UserDetails;
     import org.springframework.web.bind.annotation.*;
 
 
@@ -658,23 +656,10 @@ public ResponseEntity<?> getModule(@PathVariable Long id) {
             }
         }
 
-@GetMapping("/modules/{moduleId}/assessments")
-public ResponseEntity<List<Assessment>> getAssessmentsByModule(@PathVariable Long moduleId) {
-    System.out.println("🎯 GET /api/modules/" + moduleId + "/assessments endpoint hit!");
-    System.out.println("   📅 Time: " + new Date());
-    
-    try {
-        List<Assessment> assessments = courseService.getAssessmentsByModuleId(moduleId);
-        System.out.println("✅ Returning " + assessments.size() + " assessments");
-        return ResponseEntity.ok(assessments);
-        
-    } catch (Exception e) {
-        System.out.println("❌ Controller error: " + e.getMessage());
-        e.printStackTrace();
-        // Return empty list with 200 status (not 500)
-        return ResponseEntity.ok(Collections.emptyList());
-    }
-}
+        @GetMapping("/modules/{moduleId}/assessments")
+        public ResponseEntity<List<Assessment>> getAssessmentsByModule(@PathVariable Long moduleId) {
+            return ResponseEntity.ok(courseService.getAssessmentsByModuleId(moduleId));
+        }
 
         // ---------------------- QUESTION APIs ----------------------
         @PostMapping("/questions")

@@ -57,7 +57,7 @@ public class SecurityConfig {
                 
                 // Debug endpoints
                 .requestMatchers("/api/debug/**").permitAll()
-                
+                .requestMatchers("/api/public/**").permitAll()
                 // Authentication endpoints
                 .requestMatchers(
                     "/api/auth/login",
