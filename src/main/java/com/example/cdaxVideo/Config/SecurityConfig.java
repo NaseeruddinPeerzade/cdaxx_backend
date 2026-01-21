@@ -84,13 +84,13 @@ public class SecurityConfig {
                 // Public assessment endpoints (FIXED PATTERNS)
                 .requestMatchers(HttpMethod.GET, "/api/course/assessment/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/assessments/**").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/modules/{moduleId}/assessments").permitAll() // Keep only one, not both
+                .requestMatchers(HttpMethod.GET, "/api/modules/*/assessments").permitAll() // Keep only one, not both
                 .requestMatchers(HttpMethod.GET, "/api/course/assessment/status").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/course/assessment/can-attempt").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/course/assessment/questions").permitAll()
 
                 // Assessment submissions require authentication (FIXED PATTERNS)
-                .requestMatchers(HttpMethod.POST, "/api/modules/{moduleId}/assessments").authenticated()
+                .requestMatchers(HttpMethod.POST, "/api/modules/*/assessments").authenticated()
                 .requestMatchers(HttpMethod.POST, "/api/course/assessment/**").authenticated()
                 .requestMatchers(HttpMethod.POST, "/api/assessments/**").authenticated()
                 .requestMatchers(HttpMethod.POST, "/api/course/assessment/submit").authenticated()
