@@ -2,11 +2,12 @@ package com.example.cdaxVideo.Config;
 
 import com.example.cdaxVideo.Service.CustomUserDetailsService;
 import io.jsonwebtoken.ExpiredJwtException;
-import jakarta.annotation.PostConstruct;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -17,10 +18,11 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.util.Collections;
 
 @Component
 public class JwtRequestFilter extends OncePerRequestFilter {
+    
+    private static final Logger logger = LoggerFactory.getLogger(JwtRequestFilter.class);
     
     @Autowired
     private JwtTokenUtil jwtTokenUtil;
@@ -28,115 +30,43 @@ public class JwtRequestFilter extends OncePerRequestFilter {
     @Autowired
     private CustomUserDetailsService userDetailsService;
     
-    // Debug constructor
-    public JwtRequestFilter() {
-        System.out.println("✅✅✅ JWT REQUEST FILTER CONSTRUCTOR CALLED!");
-    }
-    
-    @PostConstruct
-    public void init() {
-        System.out.println("✅✅✅ JWT FILTER INITIALIZED!");
-        System.out.println("   jwtTokenUtil: " + (jwtTokenUtil != null ? "INJECTED" : "NULL"));
-        System.out.println("   userDetailsService: " + (userDetailsService != null ? "INJECTED" : "NULL"));
-    }
-    
-    @Override
-    protected boolean shouldNotFilter(HttpServletRequest request) {
-        String path = request.getServletPath();
-        String method = request.getMethod();
-        
-        System.out.println("\n🎯🎯🎯 JWT FILTER - shouldNotFilter() CALLED!");
-        System.out.println("📍 Method: " + method);
-        System.out.println("📍 Path: " + path);
-        
-        // Skip OPTIONS (CORS preflight)
-        if ("OPTIONS".equalsIgnoreCase(method)) {
-            System.out.println("✅ SKIP: OPTIONS request");
-            return true;
-        }
-        
-        // Skip auth endpoints
-        if (path.startsWith("/api/auth/")) {
-            System.out.println("✅ SKIP: Auth endpoint");
-            return true;
-        }
-        
-        // Skip uploads
-        if (path.startsWith("/uploads/")) {
-            System.out.println("✅ SKIP: Public uploads");
-            return true;
-        }
-        
-        // Skip Swagger
-        if (path.startsWith("/swagger-ui") || path.startsWith("/v3/api-docs")) {
-            System.out.println("✅ SKIP: Swagger");
-            return true;
-        }
-        
-        // Skip debug
-        if (path.startsWith("/api/debug/")) {
-            System.out.println("✅ SKIP: Debug endpoint");
-            return true;
-        }
-        
-        // Skip actuator
-        if (path.startsWith("/actuator/")) {
-            System.out.println("✅ SKIP: Actuator");
-            return true;
-        }
-        
-        // TEMPORARY: FORCE FILTER TO RUN FOR ALL REQUESTS (for debugging)
-        System.out.println("🔒 FILTER WILL RUN FOR THIS REQUEST");
-        return false;
-    }
-    
     @Override
     protected void doFilterInternal(HttpServletRequest request, 
                                     HttpServletResponse response, 
                                     FilterChain chain)
             throws ServletException, IOException {
         
-        System.out.println("\n🔐🔐🔐 JWT FILTER - doFilterInternal() EXECUTING!");
-        System.out.println("📍 Request: " + request.getMethod() + " " + request.getServletPath());
-        
-        // Log ALL headers
-        System.out.println("📋 ALL REQUEST HEADERS:");
-        Collections.list(request.getHeaderNames()).forEach(headerName -> {
-            System.out.println("   " + headerName + ": " + request.getHeader(headerName));
-        });
+        logger.info("🚀 JWT FILTER EXECUTING for: {} {}", request.getMethod(), request.getRequestURI());
         
         final String requestTokenHeader = request.getHeader("Authorization");
+        
         String username = null;
         String jwtToken = null;
         
+        // JWT Token is in the form "Bearer token". Remove Bearer word and get only the Token
         if (requestTokenHeader != null && requestTokenHeader.startsWith("Bearer ")) {
             jwtToken = requestTokenHeader.substring(7);
-            System.out.println("🔑 Token extracted, length: " + jwtToken.length());
-            
             try {
                 username = jwtTokenUtil.getUsernameFromToken(jwtToken);
-                System.out.println("👤 Username from token: " + username);
+                logger.info("✅ Token valid for user: {}", username);
+            } catch (IllegalArgumentException e) {
+                logger.error("❌ Unable to get JWT Token");
+            } catch (ExpiredJwtException e) {
+                logger.warn("⚠️ JWT Token has expired");
             } catch (Exception e) {
-                System.out.println("❌ Error extracting username: " + e.getMessage());
-                e.printStackTrace();
+                logger.error("❌ JWT Token validation failed: {}", e.getMessage());
             }
         } else {
-            System.out.println("⚠️ No valid Authorization header found");
-            if (requestTokenHeader != null) {
-                System.out.println("   Actual header value: " + requestTokenHeader);
-            }
+            logger.warn("⚠️ JWT Token does not begin with Bearer String");
         }
         
-        if (username != null) {
-            System.out.println("🔍 Attempting to authenticate user: " + username);
-            
+        // Once we get the token validate it.
+        if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
             try {
                 UserDetails userDetails = this.userDetailsService.loadUserByUsername(username);
-                System.out.println("✅ UserDetails loaded successfully");
                 
+                // If token is valid configure Spring Security to manually set authentication
                 if (jwtTokenUtil.validateToken(jwtToken, userDetails)) {
-                    System.out.println("✅ Token validated successfully");
-                    
                     UsernamePasswordAuthenticationToken authentication = 
                         new UsernamePasswordAuthenticationToken(
                             userDetails, null, userDetails.getAuthorities()
@@ -146,23 +76,17 @@ public class JwtRequestFilter extends OncePerRequestFilter {
                         new WebAuthenticationDetailsSource().buildDetails(request)
                     );
                     
+                    // After setting the Authentication in the context, we specify
+                    // that the current user is authenticated. So it passes the
+                    // Spring Security Configurations successfully.
                     SecurityContextHolder.getContext().setAuthentication(authentication);
-                    System.out.println("✅ Authentication set in SecurityContext");
-                } else {
-                    System.out.println("❌ Token validation failed");
+                    logger.info("✅ Authentication set for user: {}", username);
                 }
             } catch (UsernameNotFoundException e) {
-                System.out.println("❌ User not found: " + username);
-            } catch (Exception e) {
-                System.out.println("❌ Error during authentication: " + e.getMessage());
-                e.printStackTrace();
+                logger.error("❌ User not found: {}", username);
             }
-        } else {
-            System.out.println("ℹ️ No username extracted, continuing without authentication");
         }
         
-        System.out.println("➡️ Continuing to next filter in chain...");
         chain.doFilter(request, response);
-        System.out.println("🏁 JWT Filter completed for: " + request.getServletPath());
     }
 }
