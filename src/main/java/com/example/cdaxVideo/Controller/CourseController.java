@@ -658,10 +658,23 @@ public ResponseEntity<?> getModule(@PathVariable Long id) {
             }
         }
 
-        @GetMapping("/modules/{moduleId}/assessments")
-        public ResponseEntity<List<Assessment>> getAssessmentsByModule(@PathVariable Long moduleId) {
-            return ResponseEntity.ok(courseService.getAssessmentsByModuleId(moduleId));
-        }
+@GetMapping("/modules/{moduleId}/assessments")
+public ResponseEntity<List<Assessment>> getAssessmentsByModule(@PathVariable Long moduleId) {
+    System.out.println("🎯 GET /api/modules/" + moduleId + "/assessments endpoint hit!");
+    System.out.println("   📅 Time: " + new Date());
+    
+    try {
+        List<Assessment> assessments = courseService.getAssessmentsByModuleId(moduleId);
+        System.out.println("✅ Returning " + assessments.size() + " assessments");
+        return ResponseEntity.ok(assessments);
+        
+    } catch (Exception e) {
+        System.out.println("❌ Controller error: " + e.getMessage());
+        e.printStackTrace();
+        // Return empty list with 200 status (not 500)
+        return ResponseEntity.ok(Collections.emptyList());
+    }
+}
 
         // ---------------------- QUESTION APIs ----------------------
         @PostMapping("/questions")

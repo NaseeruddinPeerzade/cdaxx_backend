@@ -414,9 +414,34 @@ public Map<String, Object> getDashboardStats(Long userId) {
         return assessmentRepository.save(assessment);
     }
 
-    public List<Assessment> getAssessmentsByModuleId(Long moduleId) {
-        return assessmentRepository.findByModuleId(moduleId);
+public List<Assessment> getAssessmentsByModuleId(Long moduleId) {
+    System.out.println("🔍 CourseService.getAssessmentsByModuleId(" + moduleId + ") called");
+    
+    try {
+        // Check if module exists
+        Optional<Module> moduleOpt = moduleRepository.findById(moduleId);
+        if (moduleOpt.isEmpty()) {
+            System.out.println("❌ Module not found with ID: " + moduleId);
+            return new ArrayList<>(); // Return empty list instead of throwing
+        }
+        
+        List<Assessment> assessments = assessmentRepository.findByModuleId(moduleId);
+        System.out.println("✅ Found " + assessments.size() + " assessments for module " + moduleId);
+        
+        // Log assessment details
+        for (Assessment assessment : assessments) {
+            System.out.println("   ├─ Assessment: " + assessment.getTitle() + 
+                             " (ID: " + assessment.getId() + ")");
+        }
+        
+        return assessments;
+        
+    } catch (Exception e) {
+        System.out.println("❌ ERROR in getAssessmentsByModuleId: " + e.getMessage());
+        e.printStackTrace();
+        return new ArrayList<>(); // Return empty list on error
     }
+}
     //-----------------------------------------------------------------------------
 
 @Transactional(rollbackFor = Exception.class)
