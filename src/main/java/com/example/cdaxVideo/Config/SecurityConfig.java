@@ -83,7 +83,7 @@ public class SecurityConfig {
                 
                 // Public assessment endpoints - REORDERED FOR PRIORITY
                 // CRITICAL FIX: Move modules endpoint FIRST before any similar patterns
-                .requestMatchers(HttpMethod.GET, "/api/modules/*/assessments").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/modules/{moduleId}/assessments").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/course/assessment/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/assessments/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/course/assessment/status").permitAll()
@@ -91,7 +91,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/course/assessment/questions").permitAll()
 
                 // Assessment submissions require authentication
-                .requestMatchers(HttpMethod.POST, "/api/modules/*/assessments").authenticated()
+                .requestMatchers(HttpMethod.POST, "/api/modules/{moduleId}/assessments").authenticated()
                 .requestMatchers(HttpMethod.POST, "/api/course/assessment/**").authenticated()
                 .requestMatchers(HttpMethod.POST, "/api/assessments/**").authenticated()
                 .requestMatchers(HttpMethod.POST, "/api/course/assessment/submit").authenticated()
