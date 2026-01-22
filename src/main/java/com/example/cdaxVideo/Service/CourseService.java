@@ -72,6 +72,7 @@ public class CourseService {
         return courseRepository.save(course);
     }
 
+@Transactional(readOnly = true)
 public List<Course> getAllCoursesWithModulesAndVideos() {
     logger.info("📚 Getting all courses with modules and videos");
     

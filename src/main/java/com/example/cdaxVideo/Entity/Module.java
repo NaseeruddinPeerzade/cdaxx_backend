@@ -37,9 +37,12 @@ public class Module {
     private boolean assessmentLocked = true;
 
     // Constructors
-    public Module() {}
+    public Module() {
+        this.videos = new ArrayList<>();
+    }
 
     public Module(String title, int durationSec) {
+        this();
         this.title = title;
         this.durationSec = durationSec;
     }
@@ -67,22 +70,44 @@ public class Module {
         return videos; 
     }
     
-    // OLD WRONG WAY - Causes orphan removal error:
-    // public void setVideos(List<Video> videos) { this.videos = videos; }
-    
-    // NEW CORRECT WAY: Clear and add all elements
+    // FIXED: Safe setVideos method that handles lazy initialization
     public void setVideos(List<Video> videos) {
-        // First, clear the existing collection properly
-        if (this.videos != null) {
-            this.videos.clear(); // This properly handles orphan removal
-        } else {
+        // SAFE APPROACH: Check if collection is already initialized
+        if (this.videos == null) {
             this.videos = new ArrayList<>();
         }
         
-        // Then add all new videos
+        // If we have an existing collection, check if it's a Hibernate proxy
+        boolean canClear = true;
+        try {
+            // Try to check if it's a Hibernate PersistentCollection
+            if (this.videos instanceof org.hibernate.collection.spi.PersistentCollection) {
+                org.hibernate.collection.spi.PersistentCollection pc = 
+                    (org.hibernate.collection.spi.PersistentCollection) this.videos;
+                
+                // Check if the collection is initialized
+                if (!pc.wasInitialized()) {
+                    // If it's not initialized, we shouldn't clear it
+                    // Instead, create a new list
+                    this.videos = new ArrayList<>();
+                    canClear = false;
+                }
+            }
+        } catch (Exception e) {
+            // If any exception occurs, create a new list
+            this.videos = new ArrayList<>();
+            canClear = false;
+        }
+        
+        // Clear existing collection if safe to do so
+        if (canClear) {
+            this.videos.clear();
+        }
+        
+        // Add all new videos
         if (videos != null) {
             for (Video video : videos) {
-                addVideo(video); // Use helper method to maintain bidirectional relationship
+                addVideo(video);
             }
         }
     }
@@ -106,13 +131,6 @@ public class Module {
         }
     }
     
-    // Alternative: If you don't want to modify the collection, remove orphanRemoval
-    // OPTION 2: Change from orphanRemoval = true to just cascade
-    // @OneToMany(mappedBy = "module", cascade = CascadeType.ALL)
-    // @OrderBy("displayOrder ASC")
-    // @JsonIgnoreProperties({"hibernateLazyInitializer", "handler", "userProgress"})
-    // private List<Video> videos = new ArrayList<>();
-    
     public boolean isLocked() { return isLocked; }
     public void setLocked(boolean locked) { this.isLocked = locked; }
 
@@ -130,5 +148,16 @@ public class Module {
     @Override
     public int hashCode() {
         return getClass().hashCode();
+    }
+    
+    // ========== toString() for debugging ==========
+    @Override
+    public String toString() {
+        return "Module{" +
+                "id=" + id +
+                ", title='" + title + '\'' +
+                ", videosCount=" + (videos != null ? videos.size() : 0) +
+                ", isLocked=" + isLocked +
+                '}';
     }
 }
