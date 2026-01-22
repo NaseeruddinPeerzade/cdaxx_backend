@@ -3,10 +3,8 @@ package com.example.cdaxVideo.Service;
 import com.example.cdaxVideo.Entity.User;
 import java.io.IOException;
 import com.example.cdaxVideo.Entity.UserCoursePurchase;
-import com.example.cdaxVideo.Entity.UserSubscription;
 import com.example.cdaxVideo.Repository.UserCoursePurchaseRepository;
 import com.example.cdaxVideo.Repository.UserRepository;
-import com.example.cdaxVideo.Repository.UserSubscriptionRepository;
 import com.example.cdaxVideo.Config.JwtTokenUtil;
 import com.example.cdaxVideo.DTO.UserDTO;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,7 +31,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.stream.Collectors;
+
 
 @Service
 @Transactional

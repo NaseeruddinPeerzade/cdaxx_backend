@@ -10,7 +10,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -28,9 +27,44 @@ public class JwtRequestFilter extends OncePerRequestFilter {
     
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
-        // ✅ FIXED: Only skip OPTIONS requests for CORS preflight
-        // DO NOT skip multipart requests - they need authentication too!
-        return "OPTIONS".equalsIgnoreCase(request.getMethod());
+        String path = request.getServletPath();
+        String method = request.getMethod();
+        
+        System.out.println("🔍 Checking if should filter: " + method + " " + path);
+        
+        // ✅ Skip ALL public endpoints (not just OPTIONS)
+        if (isPublicEndpoint(path, method)) {
+            System.out.println("✅ Skipping JWT filter for public endpoint");
+            return true;
+        }
+        
+        return false;
+    }
+    
+    private boolean isPublicEndpoint(String path, String method) {
+        // Always skip OPTIONS (CORS preflight)
+        if ("OPTIONS".equalsIgnoreCase(method)) {
+            return true;
+        }
+        
+        // List ALL public endpoints from your SecurityConfig
+        return path.startsWith("/api/auth/") ||
+               path.startsWith("/api/public/") ||
+               path.startsWith("/api/debug/") ||
+               path.startsWith("/api/courses/public") ||
+               (path.equals("/api/courses") && "GET".equalsIgnoreCase(method)) ||
+               (path.matches("/api/courses/\\d+") && "GET".equalsIgnoreCase(method)) ||
+               (path.matches("/api/modules/\\d+/assessments") && "GET".equalsIgnoreCase(method)) ||
+               path.startsWith("/api/course/assessment/") ||
+               path.startsWith("/api/assessments") ||
+               path.startsWith("/uploads/") ||
+               path.startsWith("/swagger-ui/") ||
+               path.startsWith("/v3/api-docs/") ||
+               path.equals("/actuator/health") ||
+               path.equals("/actuator/info") ||
+               path.startsWith("/api/dashboard/public") ||
+               path.startsWith("/api/videos/public") ||
+               path.startsWith("/api/test/");
     }
     
     @Override
@@ -39,18 +73,10 @@ public class JwtRequestFilter extends OncePerRequestFilter {
                                     FilterChain chain)
             throws ServletException, IOException {
         
-        // Log request details for debugging
         String requestPath = request.getRequestURI();
-        String method = request.getMethod();
-        String contentType = request.getContentType();
-        
-        System.out.println("\n=== JWT Filter Debug ===");
-        System.out.println("Path: " + requestPath);
-        System.out.println("Method: " + method);
-        System.out.println("Content-Type: " + contentType);
+        System.out.println("🔐 JWT Filter processing: " + requestPath);
         
         final String requestTokenHeader = request.getHeader("Authorization");
-        System.out.println("Authorization Header Present: " + (requestTokenHeader != null));
         
         String username = null;
         String jwtToken = null;
@@ -58,36 +84,22 @@ public class JwtRequestFilter extends OncePerRequestFilter {
         // Extract JWT token from Authorization header
         if (requestTokenHeader != null && requestTokenHeader.startsWith("Bearer ")) {
             jwtToken = requestTokenHeader.substring(7);
-            System.out.println("JWT Token Length: " + jwtToken.length());
             
             try {
                 username = jwtTokenUtil.getUsernameFromToken(jwtToken);
                 System.out.println("Extracted Username: " + username);
-            } catch (IllegalArgumentException e) {
-                System.out.println("❌ Unable to get JWT Token: " + e.getMessage());
-            } catch (ExpiredJwtException e) {
-                System.out.println("⚠️ JWT Token has expired");
             } catch (Exception e) {
-                System.out.println("❌ Error parsing token: " + e.getClass().getSimpleName() + " - " + e.getMessage());
-            }
-        } else {
-            if (requestTokenHeader != null) {
-                System.out.println("⚠️ Invalid Authorization format. Starts with: '" + 
-                    requestTokenHeader.substring(0, Math.min(requestTokenHeader.length(), 10)) + "'");
-            } else {
-                System.out.println("⚠️ No Authorization header present");
+                System.out.println("Error extracting username: " + e.getMessage());
             }
         }
         
         // Validate token and set authentication
         if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-            System.out.println("🔐 Loading user details for: " + username);
-            
             try {
                 UserDetails userDetails = this.userDetailsService.loadUserByUsername(username);
                 
                 if (jwtTokenUtil.validateToken(jwtToken, userDetails)) {
-                    System.out.println("✅ Token validated successfully");
+                    System.out.println("✅ Token validated for: " + username);
                     
                     UsernamePasswordAuthenticationToken authentication = 
                         new UsernamePasswordAuthenticationToken(
@@ -101,25 +113,12 @@ public class JwtRequestFilter extends OncePerRequestFilter {
                     );
                     
                     SecurityContextHolder.getContext().setAuthentication(authentication);
-                    System.out.println("✅ Authentication set in SecurityContext");
-                } else {
-                    System.out.println("❌ Token validation failed");
                 }
-            } catch (UsernameNotFoundException e) {
-                System.out.println("❌ User not found: " + username);
             } catch (Exception e) {
-                System.out.println("❌ Error loading user: " + e.getMessage());
-                e.printStackTrace();
-            }
-        } else {
-            if (username == null) {
-                System.out.println("ℹ️ No username extracted - proceeding without authentication");
-            } else {
-                System.out.println("ℹ️ Authentication already exists in context");
+                System.out.println("Error setting authentication: " + e.getMessage());
             }
         }
         
-        System.out.println("➡️ Continuing filter chain...");
         chain.doFilter(request, response);
     }
 }
