@@ -54,12 +54,10 @@ public class JwtRequestFilter extends OncePerRequestFilter {
         System.out.println("   Clean path for matching: " + cleanPath);
         
         // List ALL public endpoints from SecurityConfig
-        boolean isPublic = 
-            // Authentication endpoints (all methods)
-            cleanPath.startsWith("/api/auth/") ||
-            
-            // Public resources
-            cleanPath.startsWith("/api/public/") ||
+        boolean isPublic = false; // Start with false
+        
+        // Public resources
+        if (cleanPath.startsWith("/api/public/") ||
             cleanPath.startsWith("/api/debug/") ||
             cleanPath.startsWith("/uploads/") ||
             
@@ -77,33 +75,60 @@ public class JwtRequestFilter extends OncePerRequestFilter {
             // Legacy public endpoints
             cleanPath.equals("/api/dashboard/public") ||
             cleanPath.startsWith("/api/videos/public/") ||
-            cleanPath.startsWith("/api/test/");
+            cleanPath.startsWith("/api/test/")) {
+            
+            isPublic = true;
+        }
+        
+        // ⚠️ CRITICAL FIX: Exclude profile endpoints from being treated as public
+        if (cleanPath.startsWith("/api/auth/profile/")) {
+            System.out.println("   ⚠️ Profile endpoint detected - NOT public, requires authentication");
+            return false; // Profile endpoints are NOT public!
+        }
+        
+        // Specific AUTH endpoints that are public (excluding profile)
+        if (cleanPath.startsWith("/api/auth/")) {
+            // Only these specific auth endpoints are public
+            isPublic = 
+                // Login/Register endpoints
+                cleanPath.equals("/api/auth/login") ||
+                cleanPath.equals("/api/auth/register") ||
+                cleanPath.equals("/api/auth/jwt/login") ||
+                cleanPath.equals("/api/auth/jwt/register") ||
+                cleanPath.equals("/api/auth/jwt/validate") ||
+                cleanPath.equals("/api/auth/jwt/refresh") ||
+                cleanPath.equals("/api/auth/forgot-password") ||
+                cleanPath.equals("/api/auth/reset-password") ||
+                cleanPath.equals("/api/auth/verify-email") ||
+                cleanPath.equals("/api/auth/firstName") ||
+                cleanPath.equals("/api/auth/getUserByEmail") ||
+                
+                // Logout (handled separately)
+                cleanPath.equals("/api/auth/logout");
+            
+            System.out.println("   Is auth endpoint public: " + isPublic);
+        }
         
         // For GET requests specifically
         if ("GET".equalsIgnoreCase(method)) {
-            isPublic = isPublic ||
-                // Public courses
-                cleanPath.startsWith("/api/courses/public") ||
+            if (cleanPath.startsWith("/api/courses/public") ||
                 cleanPath.equals("/api/courses") ||
                 cleanPath.matches("/api/courses/\\d+") ||
                 
-                // ✅ FIXED: Module endpoints - CRITICAL FIX
-                cleanPath.matches("/api/modules/\\d+") || // /api/modules/1
-                cleanPath.matches("/api/modules/course/\\d+") || // /api/modules/course/1
+                // Module endpoints
+                cleanPath.matches("/api/modules/\\d+") ||
+                cleanPath.matches("/api/modules/course/\\d+") ||
                 
-                // ✅ FIXED: Videos and assessments under modules
-                cleanPath.matches("/api/modules/\\d+/videos") || // /api/modules/1/videos
-                cleanPath.matches("/api/modules/\\d+/assessments") || // /api/modules/1/assessments
+                // Videos and assessments under modules
+                cleanPath.matches("/api/modules/\\d+/videos") ||
+                cleanPath.matches("/api/modules/\\d+/assessments") ||
                 
                 // Assessment endpoints
                 cleanPath.startsWith("/api/course/assessment/") ||
-                cleanPath.startsWith("/api/assessments/");
-        }
-        
-        // For POST requests to auth endpoints
-        if (("POST".equalsIgnoreCase(method) || "GET".equalsIgnoreCase(method)) && 
-            cleanPath.startsWith("/api/auth/")) {
-            isPublic = true;
+                cleanPath.startsWith("/api/assessments/")) {
+                
+                isPublic = true;
+            }
         }
         
         System.out.println("   Is public endpoint: " + isPublic);
@@ -134,6 +159,18 @@ public class JwtRequestFilter extends OncePerRequestFilter {
             } catch (Exception e) {
                 System.out.println("Error extracting username: " + e.getMessage());
             }
+        } else {
+            System.out.println("⚠️ No Authorization header or not Bearer token");
+            System.out.println("⚠️ Available headers:");
+            request.getHeaderNames().asIterator().forEachRemaining(headerName -> {
+                if (!headerName.equalsIgnoreCase("authorization")) {
+                    System.out.println("   - " + headerName + ": " + request.getHeader(headerName));
+                }
+            });
+            if (requestTokenHeader != null) {
+                System.out.println("⚠️ Authorization header exists but doesn't start with Bearer:");
+                System.out.println("⚠️ '" + requestTokenHeader + "'");
+            }
         }
         
         // Validate token and set authentication
@@ -156,10 +193,16 @@ public class JwtRequestFilter extends OncePerRequestFilter {
                     );
                     
                     SecurityContextHolder.getContext().setAuthentication(authentication);
+                } else {
+                    System.out.println("❌ Token validation failed for: " + username);
                 }
             } catch (Exception e) {
                 System.out.println("Error setting authentication: " + e.getMessage());
+                e.printStackTrace();
             }
+        } else if (!isPublicEndpoint(requestPath, request.getMethod())) {
+            // If this is not a public endpoint and no username was extracted
+            System.out.println("❌ No valid token found for protected endpoint");
         }
         
         chain.doFilter(request, response);
