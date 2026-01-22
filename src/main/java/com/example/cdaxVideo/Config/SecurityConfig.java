@@ -78,6 +78,8 @@ public class SecurityConfig {
                 .requestMatchers("/uploads/**").permitAll()
                 
                 // Public course endpoints
+                .requestMatchers(HttpMethod.GET, "/api/videos/module/*").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/assessments/module/*").permitAll()
                 .requestMatchers("/api/courses/public/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/courses").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/courses/{id}").permitAll()
