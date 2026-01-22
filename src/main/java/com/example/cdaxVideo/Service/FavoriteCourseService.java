@@ -34,7 +34,8 @@ public class FavoriteCourseService {
     public FavoriteDTO addToFavorites(Long userId, Long courseId) {
         // Check if already favorited
         if (favoriteRepository.existsByUserIdAndCourseId(userId, courseId)) {
-            throw new RuntimeException("Course already in favorites");
+            // Return null to indicate it's already in favorites
+            return null;
         }
         
         User user = userRepository.findById(userId)
@@ -53,6 +54,10 @@ public class FavoriteCourseService {
     }
     
     public void removeFromFavorites(Long userId, Long courseId) {
+        if (!favoriteRepository.existsByUserIdAndCourseId(userId, courseId)) {
+            // If not in favorites, just return (idempotent operation)
+            return;
+        }
         favoriteRepository.deleteByUserIdAndCourseId(userId, courseId);
     }
     

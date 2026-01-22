@@ -5,7 +5,9 @@ import com.example.cdaxVideo.DTO.*;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/favorites")
@@ -23,26 +25,78 @@ public class FavoriteCourseController {
     }
     
     @PostMapping("/{userId}/add/{courseId}")
-    public ResponseEntity<FavoriteDTO> addToFavorites(
+    public ResponseEntity<?> addToFavorites(
             @PathVariable Long userId,
             @PathVariable Long courseId) {
-        FavoriteDTO favorite = favoriteService.addToFavorites(userId, courseId);
-        return ResponseEntity.ok(favorite);
+        try {
+            FavoriteDTO favorite = favoriteService.addToFavorites(userId, courseId);
+            
+            if (favorite == null) {
+                // Course is already in favorites
+                Map<String, Object> response = new HashMap<>();
+                response.put("success", true);
+                response.put("alreadyFavorited", true);
+                response.put("message", "Course is already in your favorites");
+                return ResponseEntity.ok(response);
+            }
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("alreadyFavorited", false);
+            response.put("message", "Course added to favorites successfully");
+            response.put("favorite", favorite);
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("error", e.getMessage());
+            errorResponse.put("message", "Failed to add course to favorites");
+            return ResponseEntity.badRequest().body(errorResponse);
+        }
     }
     
     @DeleteMapping("/{userId}/remove/{courseId}")
-    public ResponseEntity<Void> removeFromFavorites(
+    public ResponseEntity<?> removeFromFavorites(
             @PathVariable Long userId,
             @PathVariable Long courseId) {
-        favoriteService.removeFromFavorites(userId, courseId);
-        return ResponseEntity.noContent().build();
+        try {
+            favoriteService.removeFromFavorites(userId, courseId);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "Course removed from favorites");
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("error", e.getMessage());
+            errorResponse.put("message", "Failed to remove course from favorites");
+            return ResponseEntity.badRequest().body(errorResponse);
+        }
     }
     
     @GetMapping("/{userId}/check/{courseId}")
-    public ResponseEntity<Boolean> isFavorite(
+    public ResponseEntity<Map<String, Object>> isFavorite(
             @PathVariable Long userId,
             @PathVariable Long courseId) {
-        boolean isFavorite = favoriteService.isCourseFavorite(userId, courseId);
-        return ResponseEntity.ok(isFavorite);
+        try {
+            boolean isFavorite = favoriteService.isCourseFavorite(userId, courseId);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("isFavorite", isFavorite);
+            response.put("userId", userId);
+            response.put("courseId", courseId);
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("error", e.getMessage());
+            errorResponse.put("message", "Failed to check favorite status");
+            return ResponseEntity.badRequest().body(errorResponse);
+        }
     }
 }
