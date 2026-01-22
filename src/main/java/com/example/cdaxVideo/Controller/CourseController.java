@@ -18,8 +18,8 @@
     import com.example.cdaxVideo.Service.CourseService;
     import com.example.cdaxVideo.Service.StreakService;
     import java.time.LocalDate;
-    import com.example.cdaxVideo.Entity.Assessment;
-    import org.springframework.beans.factory.annotation.Autowired;
+
+import org.springframework.beans.factory.annotation.Autowired;
     import org.springframework.http.HttpStatus;
     import org.springframework.http.ResponseEntity;
     import org.springframework.web.bind.annotation.*;
@@ -587,36 +587,35 @@ public ResponseEntity<?> getModule(@PathVariable Long id) {
         
         Module module = moduleOpt.get();
         
-        // Create response without circular references
+        // FIX: Initialize lazy collections BEFORE returning
         Map<String, Object> response = new HashMap<>();
         response.put("id", module.getId());
         response.put("title", module.getTitle());
         response.put("durationSec", module.getDurationSec());
         
+        // Don't try to access lazy-loaded course object
+        // Instead, get course ID safely
         if (module.getCourse() != null) {
             response.put("courseId", module.getCourse().getId());
-            response.put("courseTitle", module.getCourse().getTitle());
+            // Don't call getTitle() - it might trigger lazy load
         }
         
-        // Add videos without circular references
-        if (module.getVideos() != null && !module.getVideos().isEmpty()) {
-            List<Map<String, Object>> videos = module.getVideos().stream()
-                .map(video -> {
-                    Map<String, Object> videoMap = new HashMap<>();
-                    videoMap.put("id", video.getId());
-                    videoMap.put("title", video.getTitle());
-                    videoMap.put("duration", video.getDuration());
-                    videoMap.put("displayOrder", video.getDisplayOrder());
-                    videoMap.put("isPreview", video.getIsPreview());
-                    // ✅ ADD THESE FIELDS:
-                    videoMap.put("videoUrl", video.getVideoUrl());
-                    videoMap.put("youtubeId", video.getYoutubeId());
-                    // Don't include module to avoid circular reference
-                    return videoMap;
-                })
-                .collect(Collectors.toList());
-            response.put("videos", videos);
-        }
+        // For videos, fetch them separately
+        List<Video> videos = courseService.getVideosByModuleId(id);
+        List<Map<String, Object>> videoList = videos.stream()
+            .map(video -> {
+                Map<String, Object> videoMap = new HashMap<>();
+                videoMap.put("id", video.getId());
+                videoMap.put("title", video.getTitle());
+                videoMap.put("duration", video.getDuration());
+                videoMap.put("displayOrder", video.getDisplayOrder());
+                videoMap.put("isPreview", video.getIsPreview());
+                videoMap.put("videoUrl", video.getVideoUrl());
+                videoMap.put("youtubeId", video.getYoutubeId());
+                return videoMap;
+            })
+            .collect(Collectors.toList());
+        response.put("videos", videoList);
         
         return ResponseEntity.ok(response);
         
