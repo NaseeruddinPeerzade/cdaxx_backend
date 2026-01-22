@@ -141,22 +141,61 @@ public ResponseEntity<Map<String, Object>> loginUserWithJWT(@RequestBody Map<Str
 
 
     // ---------------------- GET CURRENT USER (Protected) ----------------------
-    @GetMapping("/jwt/me")
-    @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<Map<String, Object>> getCurrentUser() {
-        try {
-            UserDTO userDTO = authService.getCurrentUser();
-            Map<String, Object> resp = new HashMap<>();
-            resp.put("success", true);
-            resp.put("user", userDTO);
-            return ResponseEntity.ok(resp);
-        } catch (RuntimeException e) {
-            Map<String, Object> resp = new HashMap<>();
-            resp.put("success", false);
-            resp.put("message", e.getMessage());
-            return ResponseEntity.status(401).body(resp);
+@GetMapping("/jwt/me")
+@PreAuthorize("isAuthenticated()")
+public ResponseEntity<Map<String, Object>> getCurrentUser() {
+    try {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String email = authentication.getName();
+        
+        System.out.println("🔍 [DEBUG] /jwt/me called for email: " + email);
+        
+        // Get user WITHOUT any lazy loading
+        User user = userRepository.findByEmail(email)
+            .orElseThrow(() -> new RuntimeException("User not found"));
+        
+        // Build response with ONLY basic fields - NO LAZY COLLECTIONS
+        Map<String, Object> userResponse = new HashMap<>();
+        userResponse.put("id", user.getId());
+        userResponse.put("firstName", user.getFirstName());
+        userResponse.put("lastName", user.getLastName());
+        userResponse.put("email", user.getEmail());
+        userResponse.put("phoneNumber", user.getPhoneNumber());
+        userResponse.put("role", user.getRole());
+        userResponse.put("isNewUser", user.getIsNewUser() != null && user.getIsNewUser() == 1);
+        userResponse.put("isActive", user.getIsActive());
+        userResponse.put("isEmailVerified", user.getIsEmailVerified());
+        
+        // Add optional fields if they exist
+        if (user.getAddress() != null) {
+            userResponse.put("address", user.getAddress());
         }
+        if (user.getDateOfBirth() != null) {
+            userResponse.put("dateOfBirth", user.getDateOfBirth().toString());
+        }
+        if (user.getProfileImage() != null) {
+            userResponse.put("profileImage", user.getProfileImage());
+        }
+        
+        // Set defaults (these will be calculated later when we fix the repository)
+        userResponse.put("subscribed", false);
+        userResponse.put("enrolledCoursesCount", 0);
+        
+        Map<String, Object> resp = new HashMap<>();
+        resp.put("success", true);
+        resp.put("user", userResponse);
+        
+        System.out.println("✅ [DEBUG] Returning user response for: " + email);
+        System.out.println("📊 Response keys: " + userResponse.keySet());
+        return ResponseEntity.ok(resp);
+    } catch (RuntimeException e) {
+        System.out.println("❌ [DEBUG] Error in /jwt/me: " + e.getMessage());
+        Map<String, Object> resp = new HashMap<>();
+        resp.put("success", false);
+        resp.put("message", e.getMessage());
+        return ResponseEntity.status(401).body(resp);
     }
+}
 
 
 
@@ -180,7 +219,6 @@ public ResponseEntity<Map<String, Object>> updateProfile(@RequestBody Map<String
     }
 }
 
-// In AuthController - update /profile/me endpoint
 @GetMapping("/profile/me")
 @PreAuthorize("isAuthenticated()")
 public ResponseEntity<Map<String, Object>> getMyProfile() {
@@ -188,14 +226,47 @@ public ResponseEntity<Map<String, Object>> getMyProfile() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String email = authentication.getName();
         
-        // Use getFullUserProfile instead of getCurrentUser
-        UserDTO userDTO = authService.getFullUserProfile(email);
+        System.out.println("🔍 [DEBUG] /profile/me called for email: " + email);
+        
+        // Get user WITHOUT any lazy loading
+        User user = userRepository.findByEmail(email)
+            .orElseThrow(() -> new RuntimeException("User not found"));
+        
+        // Build response with ONLY basic fields
+        Map<String, Object> userResponse = new HashMap<>();
+        userResponse.put("id", user.getId());
+        userResponse.put("firstName", user.getFirstName());
+        userResponse.put("lastName", user.getLastName());
+        userResponse.put("email", user.getEmail());
+        userResponse.put("phoneNumber", user.getPhoneNumber());
+        userResponse.put("role", user.getRole());
+        userResponse.put("isNewUser", user.getIsNewUser() != null && user.getIsNewUser() == 1);
+        userResponse.put("isActive", user.getIsActive());
+        userResponse.put("isEmailVerified", user.getIsEmailVerified());
+        
+        // Add optional fields
+        if (user.getAddress() != null) {
+            userResponse.put("address", user.getAddress());
+        }
+        if (user.getDateOfBirth() != null) {
+            userResponse.put("dateOfBirth", user.getDateOfBirth().toString());
+        }
+        if (user.getProfileImage() != null) {
+            userResponse.put("profileImage", user.getProfileImage());
+        }
+        
+        // Set defaults
+        userResponse.put("subscribed", false);
+        userResponse.put("enrolledCoursesCount", 0);
         
         Map<String, Object> resp = new HashMap<>();
         resp.put("success", true);
-        resp.put("user", userDTO);
+        resp.put("user", userResponse);
+        
+        System.out.println("✅ [DEBUG] /profile/me response for: " + email);
         return ResponseEntity.ok(resp);
     } catch (RuntimeException e) {
+        System.out.println("❌ [DEBUG] Error in /profile/me: " + e.getMessage());
         Map<String, Object> resp = new HashMap<>();
         resp.put("success", false);
         resp.put("message", e.getMessage());
