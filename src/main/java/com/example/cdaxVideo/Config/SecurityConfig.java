@@ -96,19 +96,19 @@ public class SecurityConfig {
                     HttpMethod.GET,
                     // Single module
                     "/api/modules/{id}",
-                    "/api/modules/{moduleId}",
-                    "/api/modules/*",
+                    "/api/module/{moduleId}",
+                    "/api/module/*",
                     // Module sub-paths (videos, assessments, etc.)
-                    "/api/modules/{id}/**",
-                    "/api/modules/{moduleId}/**",
-                    "/api/modules/*/**",
+                    "/api/module/{id}/**",
+                    "/api/module/{moduleId}/**",
+                    "/api/module/*/**",
                     // Specific patterns (for clarity)
-                    "/api/modules/{moduleId}/videos",
-                    "/api/modules/{moduleId}/assessments",
-                    "/api/modules/{id}/videos",
-                    "/api/modules/{id}/assessments",
-                    "/api/modules/*/videos",
-                    "/api/modules/*/assessments"
+                    "/api/module/{moduleId}/videos",
+                    "/api/module/{moduleId}/assessments",
+                    "/api/module/{id}/videos",
+                    "/api/module/{id}/assessments",
+                    "/api/module/*/videos",
+                    "/api/module/*/assessments"
                 ).permitAll()
                 
                 // Module by course
@@ -127,7 +127,7 @@ public class SecurityConfig {
                 
                 // ============ AUTHENTICATED ENDPOINTS ============
                 // Assessment submissions require authentication
-                .requestMatchers(HttpMethod.POST, "/api/modules/{moduleId}/assessments").authenticated()
+                .requestMatchers(HttpMethod.POST, "/api/module/{moduleId}/assessments").authenticated()
                 .requestMatchers(HttpMethod.POST, "/api/course/assessment/**").authenticated()
                 .requestMatchers(HttpMethod.POST, "/api/assessments/**").authenticated()
                 .requestMatchers(HttpMethod.POST, "/api/course/assessment/submit").authenticated()
