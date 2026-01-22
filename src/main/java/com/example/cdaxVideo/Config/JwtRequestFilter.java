@@ -47,30 +47,67 @@ public class JwtRequestFilter extends OncePerRequestFilter {
             return true;
         }
         
-        // List ALL public endpoints from your SecurityConfig
-        return path.startsWith("/api/auth/") ||
-               path.startsWith("/api/public/") ||
-               path.startsWith("/api/debug/") ||
-               path.startsWith("/api/courses/public") ||
-               (path.equals("/api/courses") && "GET".equalsIgnoreCase(method)) ||
-               (path.matches("/api/courses/\\d+") && "GET".equalsIgnoreCase(method)) ||
-               // FIXED: Add ALL module patterns
-               (path.matches("/api/modules/\\d+") && "GET".equalsIgnoreCase(method)) ||
-               (path.matches("/api/module/\\d+/videos") && "GET".equalsIgnoreCase(method)) ||
-               (path.matches("/api/module/\\d+/assessments") && "GET".equalsIgnoreCase(method)) ||
-               (path.matches("/api/modules/course/\\d+") && "GET".equalsIgnoreCase(method)) ||
-               // Better: Use wildcard pattern
-               (path.matches("/api/modules/\\d+/.*") && "GET".equalsIgnoreCase(method)) ||
-               path.startsWith("/api/course/assessment/") ||
-               path.startsWith("/api/assessments") ||
-               path.startsWith("/uploads/") ||
-               path.startsWith("/swagger-ui/") ||
-               path.startsWith("/v3/api-docs/") ||
-               path.equals("/actuator/health") ||
-               path.equals("/actuator/info") ||
-               path.startsWith("/api/dashboard/public") ||
-               path.startsWith("/api/videos/public") ||
-               path.startsWith("/api/test/");
+        // Remove query parameters for clean matching
+        String cleanPath = path.split("\\?")[0];
+        
+        // Debug: Print what we're checking
+        System.out.println("   Clean path for matching: " + cleanPath);
+        
+        // List ALL public endpoints from SecurityConfig
+        boolean isPublic = 
+            // Authentication endpoints (all methods)
+            cleanPath.startsWith("/api/auth/") ||
+            
+            // Public resources
+            cleanPath.startsWith("/api/public/") ||
+            cleanPath.startsWith("/api/debug/") ||
+            cleanPath.startsWith("/uploads/") ||
+            
+            // Swagger/OpenAPI
+            cleanPath.startsWith("/swagger-ui/") ||
+            cleanPath.startsWith("/v3/api-docs/") ||
+            cleanPath.equals("/swagger-ui.html") ||
+            cleanPath.startsWith("/webjars/") ||
+            cleanPath.startsWith("/swagger-resources/") ||
+            
+            // Actuator
+            cleanPath.equals("/actuator/health") ||
+            cleanPath.equals("/actuator/info") ||
+            
+            // Legacy public endpoints
+            cleanPath.equals("/api/dashboard/public") ||
+            cleanPath.startsWith("/api/videos/public/") ||
+            cleanPath.startsWith("/api/test/");
+        
+        // For GET requests specifically
+        if ("GET".equalsIgnoreCase(method)) {
+            isPublic = isPublic ||
+                // Public courses
+                cleanPath.startsWith("/api/courses/public") ||
+                cleanPath.equals("/api/courses") ||
+                cleanPath.matches("/api/courses/\\d+") ||
+                
+                // ✅ FIXED: Module endpoints - CRITICAL FIX
+                cleanPath.matches("/api/modules/\\d+") || // /api/modules/1
+                cleanPath.matches("/api/modules/course/\\d+") || // /api/modules/course/1
+                
+                // ✅ FIXED: Videos and assessments under modules
+                cleanPath.matches("/api/modules/\\d+/videos") || // /api/modules/1/videos
+                cleanPath.matches("/api/modules/\\d+/assessments") || // /api/modules/1/assessments
+                
+                // Assessment endpoints
+                cleanPath.startsWith("/api/course/assessment/") ||
+                cleanPath.startsWith("/api/assessments/");
+        }
+        
+        // For POST requests to auth endpoints
+        if (("POST".equalsIgnoreCase(method) || "GET".equalsIgnoreCase(method)) && 
+            cleanPath.startsWith("/api/auth/")) {
+            isPublic = true;
+        }
+        
+        System.out.println("   Is public endpoint: " + isPublic);
+        return isPublic;
     }
     
     @Override

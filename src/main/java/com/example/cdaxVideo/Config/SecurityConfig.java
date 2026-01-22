@@ -60,7 +60,6 @@ public class SecurityConfig {
                 .requestMatchers("/api/public/**").permitAll()
                 
                 // ============ AUTHENTICATION ENDPOINTS ============
-                // IMPORTANT: NO HttpMethod.GET here - allow ALL methods (POST, GET, etc.)
                 .requestMatchers(
                     "/api/auth/login",
                     "/api/auth/register",
@@ -78,42 +77,19 @@ public class SecurityConfig {
                 // Public file access
                 .requestMatchers("/uploads/**").permitAll()
                 
-                // ============ NEW PATTERN ENDPOINTS ============
-                .requestMatchers(HttpMethod.GET, "/api/videos/module/*").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/assessments/module/*").permitAll()
-                
                 // Public course endpoints
                 .requestMatchers("/api/courses/public/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/courses").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/courses/{id}").permitAll()
                 
-                // ============ MODULE ENDPOINTS ============
-                // TEST: Global module wildcard at the TOP
-                .requestMatchers(HttpMethod.GET, "/api/modules/*/**").permitAll()
-                
-                // Specific module patterns (backup)
-                .requestMatchers(
-                    HttpMethod.GET,
-                    // Single module
-                    "/api/modules/{id}",
-                    "/api/module/{moduleId}",
-                    "/api/module/*",
-                    // Module sub-paths (videos, assessments, etc.)
-                    "/api/module/{id}/**",
-                    "/api/module/{moduleId}/**",
-                    "/api/module/*/**",
-                    // Specific patterns (for clarity)
-                    "/api/module/{moduleId}/videos",
-                    "/api/module/{moduleId}/assessments",
-                    "/api/module/{id}/videos",
-                    "/api/module/{id}/assessments",
-                    "/api/module/*/videos",
-                    "/api/module/*/assessments"
-                ).permitAll()
-                
-                // Module by course
+                // ============ MODULE ENDPOINTS - FIXED ============
+                // Specific public GET endpoints for modules
+                .requestMatchers(HttpMethod.GET, "/api/modules/{id}").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/modules/course/{courseId}").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/modules/course/*").permitAll()
+                
+                // ✅ FIXED: Explicitly allow videos and assessments endpoints
+                .requestMatchers(HttpMethod.GET, "/api/modules/{moduleId}/videos").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/modules/{moduleId}/assessments").permitAll()
                 
                 // ============ ASSESSMENT ENDPOINTS ============
                 .requestMatchers(HttpMethod.GET, "/api/course/assessment/**").permitAll()
@@ -127,10 +103,15 @@ public class SecurityConfig {
                 
                 // ============ AUTHENTICATED ENDPOINTS ============
                 // Assessment submissions require authentication
-                .requestMatchers(HttpMethod.POST, "/api/module/{moduleId}/assessments").authenticated()
+                .requestMatchers(HttpMethod.POST, "/api/modules/{moduleId}/assessments").authenticated()
                 .requestMatchers(HttpMethod.POST, "/api/course/assessment/**").authenticated()
                 .requestMatchers(HttpMethod.POST, "/api/assessments/**").authenticated()
                 .requestMatchers(HttpMethod.POST, "/api/course/assessment/submit").authenticated()
+                
+                // Module POST endpoints (create/update)
+                .requestMatchers(HttpMethod.POST, "/api/modules").authenticated()
+                .requestMatchers(HttpMethod.POST, "/api/modules/{moduleId}/unlock-assessment").authenticated()
+                .requestMatchers(HttpMethod.POST, "/api/modules/{moduleId}/unlock-next").authenticated()
                 
                 // Public video endpoints
                 .requestMatchers("/api/videos/public/**").permitAll()
@@ -177,11 +158,6 @@ public class SecurityConfig {
                 .requestMatchers("/api/dashboard/**").authenticated()
                 .requestMatchers("/api/cart/**").authenticated()
                 .requestMatchers("/api/users/**").authenticated()
-                
-                // Module POST endpoints (create/update)
-                .requestMatchers(HttpMethod.POST, "/api/modules").authenticated()
-                .requestMatchers(HttpMethod.POST, "/api/modules/{moduleId}/unlock-assessment").authenticated()
-                .requestMatchers(HttpMethod.POST, "/api/modules/{moduleId}/unlock-next").authenticated()
                 
                 // Default - all other requests require authentication
                 .anyRequest().authenticated()

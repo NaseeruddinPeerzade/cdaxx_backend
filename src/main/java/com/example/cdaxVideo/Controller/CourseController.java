@@ -642,7 +642,7 @@ public ResponseEntity<?> getModule(@PathVariable Long id) {
             }
         }
 
-        @GetMapping("/module/{moduleId}/videos")
+        @GetMapping("/modules/{moduleId}/videos")
         @Transactional(readOnly = true)
         public ResponseEntity<List<Video>> getVideosByModule(@PathVariable Long moduleId) {
             return ResponseEntity.ok(courseService.getVideosByModuleId(moduleId));
@@ -665,7 +665,7 @@ public ResponseEntity<?> getModule(@PathVariable Long id) {
         //     return ResponseEntity.ok(courseService.getAssessmentsByModuleId(moduleId));
         // }
 
-        @GetMapping("/module/{moduleId}/assessments")
+        @GetMapping("/modules/{moduleId}/assessments")
         @Transactional(readOnly = true)
         public ResponseEntity<List<Assessment>> getAssessmentsByModule(@PathVariable Long moduleId) {
             return ResponseEntity.ok(courseService.getAssessmentsByModuleId(moduleId));
