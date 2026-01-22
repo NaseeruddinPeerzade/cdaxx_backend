@@ -54,7 +54,7 @@ public class SecurityConfig {
                 // =============== PUBLIC ENDPOINTS ===============
                 // Allow all OPTIONS requests (CORS preflight)
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                
+                .requestMatchers(HttpMethod.GET, "/api/modules/*/**").permitAll()
                 // Debug endpoints
                 .requestMatchers("/api/debug/**").permitAll()
                 .requestMatchers("/api/public/**").permitAll()
