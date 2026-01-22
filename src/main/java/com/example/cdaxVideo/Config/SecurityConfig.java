@@ -54,12 +54,13 @@ public class SecurityConfig {
                 // =============== PUBLIC ENDPOINTS ===============
                 // Allow all OPTIONS requests (CORS preflight)
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/modules/*/**").permitAll()
+                
                 // Debug endpoints
                 .requestMatchers("/api/debug/**").permitAll()
                 .requestMatchers("/api/public/**").permitAll()
                 
-                // Authentication endpoints
+                // ============ AUTHENTICATION ENDPOINTS ============
+                // IMPORTANT: NO HttpMethod.GET here - allow ALL methods (POST, GET, etc.)
                 .requestMatchers(
                     "/api/auth/login",
                     "/api/auth/register",
@@ -77,15 +78,20 @@ public class SecurityConfig {
                 // Public file access
                 .requestMatchers("/uploads/**").permitAll()
                 
-                // Public course endpoints
+                // ============ NEW PATTERN ENDPOINTS ============
                 .requestMatchers(HttpMethod.GET, "/api/videos/module/*").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/assessments/module/*").permitAll()
+                
+                // Public course endpoints
                 .requestMatchers("/api/courses/public/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/courses").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/courses/{id}").permitAll()
                 
                 // ============ MODULE ENDPOINTS ============
-                // FIXED: Add wildcard patterns for ALL module GET endpoints
+                // TEST: Global module wildcard at the TOP
+                .requestMatchers(HttpMethod.GET, "/api/modules/*/**").permitAll()
+                
+                // Specific module patterns (backup)
                 .requestMatchers(
                     HttpMethod.GET,
                     // Single module
