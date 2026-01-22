@@ -179,6 +179,7 @@ public class SecurityConfig {
             "http://localhost:*",
             "http://127.0.0.1:*",
             "http://192.168.*:*",
+            "http://localhost:3000", 
             
             // Render domains
             "https://*.onrender.com",
