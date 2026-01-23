@@ -885,7 +885,7 @@ public ResponseEntity<?> canAttemptAssessment(
 // In CourseController.java
 
 // Update this existing endpoint in your CourseController.java
-
+@Transactional(readOnly = true)
 @GetMapping("/streak/course/{courseId}")
 public ResponseEntity<?> getCourseStreak(
         @PathVariable Long courseId,
@@ -926,6 +926,7 @@ public ResponseEntity<?> getCourseStreak(
     }
 }
 
+@Transactional(readOnly = true)
 @GetMapping("/streak/overview")
 public ResponseEntity<?> getUserStreakOverview(@RequestParam Long userId) {
     try {
@@ -939,6 +940,7 @@ public ResponseEntity<?> getUserStreakOverview(@RequestParam Long userId) {
     }
 }
 
+@Transactional(readOnly = true)
 @GetMapping("/streak/day/{courseId}")
 public ResponseEntity<?> getDayDetails(
         @PathVariable Long courseId,
@@ -959,7 +961,7 @@ public ResponseEntity<?> getDayDetails(
 
 // Update the existing profile/streak endpoint
 // Update this endpoint to support month parameter
-
+@Transactional(readOnly = true)
 @GetMapping("/profile/streak")
 public ResponseEntity<?> getStreak(
         @RequestParam Long userId,
@@ -1004,7 +1006,7 @@ public ResponseEntity<?> getStreak(
 }
 
 // Add this new endpoint to your CourseController.java
-
+@Transactional(readOnly = true)
 @GetMapping("/streak/course/{courseId}/month")
 public ResponseEntity<?> getCourseStreakForMonth(
         @PathVariable Long courseId,
