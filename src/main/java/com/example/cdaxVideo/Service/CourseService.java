@@ -42,6 +42,7 @@ public class CourseService {
         return courses.stream().map(CourseResponseDTO::new).collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
     public List<Course> getSubscribedCourses(Long userId) {
         List<Course> courses = courseRepository.findBySubscribedUsers_Id(userId);
 

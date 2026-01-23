@@ -237,6 +237,7 @@ public ResponseEntity<Map<String, Object>> getCourse(
 }
 
         @GetMapping("/courses/subscribed/{userId}")
+        @Transactional(readOnly = true) 
         public ResponseEntity<List<Course>> getSubscribedCourses(
                 @PathVariable Long userId) {
             List<Course> courses = courseService.getSubscribedCourses(userId);

@@ -7,6 +7,8 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 @Entity
 @Table(name = "user_streaks", 
        uniqueConstraints = @UniqueConstraint(columnNames = {"user_id", "course_id", "streak_date"}))
@@ -19,13 +21,15 @@ public class UserStreak {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     
+    @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
     
+    @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "course_id", nullable = false)
-    private Course course;
+    private Course course; 
     
     @Column(name = "streak_date", nullable = false)
     private LocalDate streakDate;
@@ -56,6 +60,12 @@ public class UserStreak {
     
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+
+    @Column(name = "user_id", insertable = false, updatable = false)
+    private Long userId;
+    
+    @Column(name = "course_id", insertable = false, updatable = false)
+    private Long courseId;
     
     // Helper method
     public void addWatchedSeconds(Integer seconds) {
@@ -90,4 +100,4 @@ public class UserStreak {
         // Re-determine active day
         isActiveDay = watchedSeconds != null && watchedSeconds > 0;
     }
-}
+} 

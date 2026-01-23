@@ -1,4 +1,5 @@
 package com.example.cdaxVideo.Entity;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
@@ -23,6 +24,7 @@ public class Module {
     private Course course;
 
     // FIX: Add @JsonIgnoreProperties
+    @JsonIgnore
     @OneToMany(mappedBy = "module", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("displayOrder ASC")
     @JsonIgnoreProperties({"hibernateLazyInitializer", "handler", "userProgress"})
