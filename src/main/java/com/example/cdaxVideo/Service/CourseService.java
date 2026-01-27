@@ -1863,5 +1863,4 @@ public List<Map<String, Object>> getUserCourseStats(Long userId) {
     return courseStats;
 }
     
-
 }

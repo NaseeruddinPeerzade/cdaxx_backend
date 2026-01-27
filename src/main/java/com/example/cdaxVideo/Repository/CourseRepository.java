@@ -46,4 +46,24 @@ public interface CourseRepository extends JpaRepository<Course, Long> {
     // 3. Get all courses with tags
     @Query("SELECT c FROM Course c WHERE c.tags IS NOT EMPTY")
     List<Course> findAllWithTags();
+
+    @Query("SELECT DISTINCT c FROM Course c " +
+       "LEFT JOIN FETCH c.modules m " +
+       "LEFT JOIN FETCH m.videos v " +
+       "WHERE c.id IN (SELECT cp.course.id FROM UserCoursePurchase cp WHERE cp.user.id = :userId) " +
+       "ORDER BY c.id, m.id, v.displayOrder")
+List<Course> findBySubscribedUsers_IdWithModules(@Param("userId") Long userId);
+
+@Query("SELECT DISTINCT c FROM Course c " +
+       "LEFT JOIN FETCH c.modules m " +
+       "LEFT JOIN FETCH m.videos v " +
+       "ORDER BY c.id, m.id, v.displayOrder")
+List<Course> findAllWithModulesAndVideos();
+
+@Query("SELECT DISTINCT c FROM Course c " +
+       "LEFT JOIN FETCH c.modules m " +
+       "LEFT JOIN FETCH m.videos v " +
+       "WHERE c.id = :courseId " +
+       "ORDER BY m.id, v.displayOrder")
+Optional<Course> findByIdWithModulesAndVideos(@Param("courseId") Long courseId);
 } 

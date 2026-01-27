@@ -31,11 +31,14 @@ public class FavoriteCourseService {
         this.userRepository = userRepository;
     }
     
+    // ✅ FIXED: Use optimized method
     public FavoriteDTO addToFavorites(Long userId, Long courseId) {
         // Check if already favorited
         if (favoriteRepository.existsByUserIdAndCourseId(userId, courseId)) {
-            // Return null to indicate it's already in favorites
-            return null;
+            // Return existing favorite using optimized method
+            return favoriteRepository.findByUserIdAndCourseIdWithDetails(userId, courseId)
+                .map(this::mapToDTO)
+                .orElse(null);
         }
         
         User user = userRepository.findById(userId)
@@ -49,14 +52,17 @@ public class FavoriteCourseService {
         favorite.setCourse(course);
         favorite.setCreatedAt(LocalDateTime.now());
         
-        FavoriteCourse saved = favoriteRepository.save(favorite);
-        return mapToDTO(saved);
+        favoriteRepository.save(favorite);
+        
+        // Return using optimized fetch
+        return favoriteRepository.findByUserIdAndCourseIdWithDetails(userId, courseId)
+            .map(this::mapToDTO)
+            .orElseThrow(() -> new RuntimeException("Failed to retrieve favorite after saving"));
     }
     
     public void removeFromFavorites(Long userId, Long courseId) {
         if (!favoriteRepository.existsByUserIdAndCourseId(userId, courseId)) {
-            // If not in favorites, just return (idempotent operation)
-            return;
+            return; // Idempotent operation
         }
         favoriteRepository.deleteByUserIdAndCourseId(userId, courseId);
     }
@@ -65,21 +71,85 @@ public class FavoriteCourseService {
         return favoriteRepository.existsByUserIdAndCourseId(userId, courseId);
     }
     
+    // ✅ FIXED: Use optimized method with JOIN FETCH
     public List<FavoriteDTO> getUserFavorites(Long userId) {
-        List<FavoriteCourse> favorites = favoriteRepository.findByUserId(userId);
-        return favorites.stream()
+        // Use the optimized method that fetches course eagerly
+        return favoriteRepository.findByUserIdWithCourse(userId).stream()
             .map(this::mapToDTO)
             .collect(Collectors.toList());
     }
     
+    // ✅ FIXED: Safe DTO mapping with null checks
     private FavoriteDTO mapToDTO(FavoriteCourse favorite) {
         FavoriteDTO dto = new FavoriteDTO();
         dto.setId(favorite.getId());
-        dto.setCourseId(favorite.getCourse().getId());
-        dto.setCourseTitle(favorite.getCourse().getTitle());
-        dto.setCourseThumbnail(favorite.getCourse().getThumbnailUrl());
-        dto.setCoursePrice(favorite.getCourse().getPrice());
+        
+        // Course is guaranteed to be loaded because we used JOIN FETCH
+        if (favorite.getCourse() != null) {
+            Course course = favorite.getCourse();
+            dto.setCourseId(course.getId());
+            dto.setCourseTitle(course.getTitle());
+            dto.setCourseThumbnail(course.getThumbnailUrl());
+            
+            // Handle nullable price
+            Double price = course.getPrice();
+            dto.setCoursePrice(price != null ? price : 0.0);
+            
+            // Add more course details if needed
+            dto.setCourseDescription(course.getDescription());
+            dto.setCourseInstructor(course.getInstructor());
+            dto.setCourseRating(course.getRating() != null ? course.getRating() : 0.0);
+            
+            // Check if course has discount
+            if (course.getDiscountPrice() != null && price != null && price > 0) {
+                dto.setHasDiscount(true);
+                dto.setOriginalPrice(price);
+                dto.setDiscountedPrice(course.getDiscountPrice());
+                dto.setDiscountPercentage(((price - course.getDiscountPrice()) / price) * 100);
+            } else {
+                dto.setHasDiscount(false);
+                dto.setOriginalPrice(price != null ? price : 0.0);
+                dto.setDiscountedPrice(price != null ? price : 0.0);
+                dto.setDiscountPercentage(0.0);
+            }
+        } else {
+            // Fallback values (shouldn't happen with JOIN FETCH)
+            dto.setCoursePrice(0.0);
+            dto.setHasDiscount(false);
+            dto.setOriginalPrice(0.0);
+            dto.setDiscountedPrice(0.0);
+            dto.setDiscountPercentage(0.0);
+        }
+        
         dto.setAddedAt(favorite.getCreatedAt());
         return dto;
+    }
+    
+    // ✅ Additional useful methods
+    
+    public int getFavoriteCount(Long userId) {
+        return (int) favoriteRepository.countByUserId(userId);
+    }
+    
+    public boolean userHasFavorites(Long userId) {
+        return favoriteRepository.userHasFavorites(userId);
+    }
+    
+    // ✅ Bulk operations
+    
+    public void clearUserFavorites(Long userId) {
+        List<FavoriteDTO> favorites = getUserFavorites(userId);
+        favorites.forEach(fav -> {
+            removeFromFavorites(userId, fav.getCourseId());
+        });
+    }
+    
+    public List<FavoriteDTO> toggleFavorite(Long userId, Long courseId) {
+        if (isCourseFavorite(userId, courseId)) {
+            removeFromFavorites(userId, courseId);
+        } else {
+            addToFavorites(userId, courseId);
+        }
+        return getUserFavorites(userId);
     }
 }
