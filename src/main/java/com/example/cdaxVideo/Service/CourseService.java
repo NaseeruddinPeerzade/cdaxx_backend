@@ -173,6 +173,7 @@ public List<Course> getPublicCourses() {
 }
     
     // FIXED: Enhanced search with keyword support
+    @Transactional(readOnly = true)
     public List<Course> enhancedSearch(String keyword) {
         if (keyword == null || keyword.trim().isEmpty()) {
             return getAllCoursesWithModulesAndVideos();

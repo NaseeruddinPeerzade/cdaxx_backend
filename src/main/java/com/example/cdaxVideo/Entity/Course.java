@@ -64,7 +64,7 @@ public class Course {
     private String subCategory;
     
     @JsonIgnore
-    @ElementCollection
+    @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "course_tags", joinColumns = @JoinColumn(name = "course_id"))
     @Column(name = "tag")
     private List<String> tags = new ArrayList<>();
