@@ -125,7 +125,7 @@ public Map<String, Object> loginUserWithJWT(String email, String password) {
     // ✅ Check password using BCrypt
     if (!passwordEncoder.matches(password, user.getPassword())) {
         System.out.println("❌ [DEBUG] Incorrect password for user: " + user.getEmail());
-        throw new RuntimeException("Incorrect password");
+        throw new RuntimeException("Incorrect password...");
     }
 
     // ✅ Generate JWT token
