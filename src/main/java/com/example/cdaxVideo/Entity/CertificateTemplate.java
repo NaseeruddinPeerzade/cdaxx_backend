@@ -33,7 +33,7 @@ public class CertificateTemplate {
     @Column(name = "signature_image_url")
     private String signatureImageUrl;
     
-    @Column(name = "default_fields", columnDefinition = "jsonb")
+    @Column(name = "default_fields", columnDefinition = "text")
     private String defaultFields;
     
     @Column(name = "is_active", nullable = false)
