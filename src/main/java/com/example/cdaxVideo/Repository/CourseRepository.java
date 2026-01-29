@@ -4,9 +4,14 @@ import com.example.cdaxVideo.Entity.Course;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
+import org.springframework.stereotype.Repository;
+
 import java.util.List;
 import java.util.Optional;
 
+@Repository
 public interface CourseRepository extends JpaRepository<Course, Long> {
 
     // ✅ Fetch only courses + modules (with ORDER BY)
@@ -15,7 +20,7 @@ public interface CourseRepository extends JpaRepository<Course, Long> {
 
     // ✅ Fetch single course + modules (with ORDER BY)
     @Query("SELECT DISTINCT c FROM Course c LEFT JOIN FETCH c.modules m WHERE c.id = :id ORDER BY m.id ASC")
-    Optional<Course> findByIdWithModules(Long id);
+    Optional<Course> findByIdWithModules(@Param("id") Long id);
 
     // ✅ FIXED: Use EXISTS subquery for collection navigation
     @Query("SELECT DISTINCT c FROM Course c " +
@@ -31,39 +36,41 @@ public interface CourseRepository extends JpaRepository<Course, Long> {
 
     List<Course> findByTitleContainingIgnoreCase(String title);
 
-    // SIMPLIFIED VERSIONS THAT WILL WORK:
+    // ✅ FIXED: Search by tag EXACT match (case-insensitive)
+    @Query("SELECT DISTINCT c FROM Course c JOIN c.tags t WHERE LOWER(t) = LOWER(:tag)")
+    List<Course> findByTagExact(@Param("tag") String tag);
 
-    // 1. Search by tag (contains)
-    @Query("SELECT c FROM Course c WHERE :tag MEMBER OF c.tags")
-    List<Course> findByTag(@Param("tag") String tag);
+    // ✅ FIXED: Search by tag CONTAINS match (case-insensitive)
+    @Query("SELECT DISTINCT c FROM Course c JOIN c.tags t WHERE LOWER(t) LIKE LOWER(CONCAT('%', :tag, '%'))")
+    List<Course> findByTagContaining(@Param("tag") String tag);
 
-    // 2. Search by title OR tags (case-insensitive)
-    @Query("SELECT c FROM Course c WHERE " +
+    // ✅ FIXED: Search by title OR tags (case-insensitive)
+    @Query("SELECT DISTINCT c FROM Course c WHERE " +
            "LOWER(c.title) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
            "EXISTS (SELECT t FROM c.tags t WHERE LOWER(t) LIKE LOWER(CONCAT('%', :keyword, '%')))")
     List<Course> searchByTitleOrTags(@Param("keyword") String keyword);
 
-    // 3. Get all courses with tags
-    @Query("SELECT c FROM Course c WHERE c.tags IS NOT EMPTY")
+    // ✅ Get all courses with tags
+    @Query("SELECT DISTINCT c FROM Course c WHERE c.tags IS NOT EMPTY")
     List<Course> findAllWithTags();
 
     @Query("SELECT DISTINCT c FROM Course c " +
-       "LEFT JOIN FETCH c.modules m " +
-       "LEFT JOIN FETCH m.videos v " +
-       "WHERE c.id IN (SELECT cp.course.id FROM UserCoursePurchase cp WHERE cp.user.id = :userId) " +
-       "ORDER BY c.id, m.id, v.displayOrder")
-List<Course> findBySubscribedUsers_IdWithModules(@Param("userId") Long userId);
+           "LEFT JOIN FETCH c.modules m " +
+           "LEFT JOIN FETCH m.videos v " +
+           "WHERE c.id IN (SELECT cp.course.id FROM UserCoursePurchase cp WHERE cp.user.id = :userId) " +
+           "ORDER BY c.id, m.id, v.displayOrder")
+    List<Course> findBySubscribedUsers_IdWithModules(@Param("userId") Long userId);
 
-@Query("SELECT DISTINCT c FROM Course c " +
-       "LEFT JOIN FETCH c.modules m " +
-       "LEFT JOIN FETCH m.videos v " +
-       "ORDER BY c.id, m.id, v.displayOrder")
-List<Course> findAllWithModulesAndVideos();
+    @Query("SELECT DISTINCT c FROM Course c " +
+           "LEFT JOIN FETCH c.modules m " +
+           "LEFT JOIN FETCH m.videos v " +
+           "ORDER BY c.id, m.id, v.displayOrder")
+    List<Course> findAllWithModulesAndVideos();
 
-@Query("SELECT DISTINCT c FROM Course c " +
-       "LEFT JOIN FETCH c.modules m " +
-       "LEFT JOIN FETCH m.videos v " +
-       "WHERE c.id = :courseId " +
-       "ORDER BY m.id, v.displayOrder")
-Optional<Course> findByIdWithModulesAndVideos(@Param("courseId") Long courseId);
-} 
+    @Query("SELECT DISTINCT c FROM Course c " +
+           "LEFT JOIN FETCH c.modules m " +
+           "LEFT JOIN FETCH m.videos v " +
+           "WHERE c.id = :courseId " +
+           "ORDER BY m.id, v.displayOrder")
+    Optional<Course> findByIdWithModulesAndVideos(@Param("courseId") Long courseId);
+}

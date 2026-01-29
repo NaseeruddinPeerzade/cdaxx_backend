@@ -9,6 +9,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -28,6 +30,8 @@ public class CourseService {
     @Autowired private UserModuleProgressRepository userModuleProgressRepository;
     @Autowired private UserAssessmentProgressRepository userAssessmentProgressRepository;
     @Autowired private UserCoursePurchaseRepository userCoursePurchaseRepository;
+    @PersistenceContext
+private EntityManager entityManager;
 
     public List<CourseResponseDTO> getDashboardCourses(Long userId) {
         User user = userRepository.findById(userId)
@@ -337,16 +341,75 @@ public List<Course> getPublicCourses() {
     }
 
     // FIXED: Get courses by specific tag
-    public List<Course> getCoursesByTag(String tagName) {
-        List<Course> allCourses = getAllCoursesWithModulesAndVideos();
-        String tagLower = tagName.toLowerCase();
-        
-        return allCourses.stream()
-            .filter(course -> course.getTags() != null && 
-                     course.getTags().stream()
-                         .anyMatch(tag -> tag.toLowerCase().contains(tagLower)))
-            .collect(Collectors.toList());
+public List<Course> getCoursesByTag(String tagName) {
+    logger.info("🔍 Searching for courses with tag: '{}'", tagName);
+    
+    if (tagName == null || tagName.trim().isEmpty()) {
+        logger.warn("❌ Empty tag name provided");
+        return new ArrayList<>();
     }
+    
+    String cleanTag = tagName.trim().toLowerCase();
+    logger.info("🔍 Cleaned tag for search: '{}'", cleanTag);
+    
+    try {
+        // Method 1: Try exact match first
+        logger.info("🔍 Trying exact tag match...");
+        List<Course> exactMatches = courseRepository.findByTagExact(cleanTag);
+        logger.info("✅ Exact matches found: {}", exactMatches.size());
+        
+        if (!exactMatches.isEmpty()) {
+            // Load modules for each course
+            for (Course course : exactMatches) {
+                List<Module> modules = moduleRepository.findByCourseId(course.getId());
+                course.setModules(modules);
+            }
+            return exactMatches;
+        }
+        
+        // Method 2: Try partial match
+        logger.info("🔍 Trying partial tag match...");
+        List<Course> partialMatches = courseRepository.findByTagContaining(cleanTag);
+        logger.info("✅ Partial matches found: {}", partialMatches.size());
+        
+        if (!partialMatches.isEmpty()) {
+            // Load modules for each course
+            for (Course course : partialMatches) {
+                List<Module> modules = moduleRepository.findByCourseId(course.getId());
+                course.setModules(modules);
+            }
+            return partialMatches;
+        }
+        
+        // Method 3: Fallback - Direct native query
+        logger.info("🔍 Trying native query fallback...");
+        String nativeQuery = """
+            SELECT DISTINCT c.* FROM courses c 
+            JOIN course_tags ct ON c.id = ct.course_id 
+            WHERE LOWER(ct.tag) LIKE CONCAT('%', :tag, '%')
+            ORDER BY c.id
+            """;
+        
+        @SuppressWarnings("unchecked")
+        List<Course> nativeMatches = entityManager.createNativeQuery(nativeQuery, Course.class)
+            .setParameter("tag", cleanTag)
+            .getResultList();
+        
+        logger.info("✅ Native query matches found: {}", nativeMatches.size());
+        
+        // Load modules for each course
+        for (Course course : nativeMatches) {
+            List<Module> modules = moduleRepository.findByCourseId(course.getId());
+            course.setModules(modules);
+        }
+        
+        return nativeMatches;
+        
+    } catch (Exception e) {
+        logger.error("❌ ERROR searching courses by tag '{}': {}", cleanTag, e.getMessage(), e);
+        return new ArrayList<>();
+    }
+}
 
     // FIXED: Advanced search with filters
     public List<Course> advancedSearch(String keyword, String category, 
