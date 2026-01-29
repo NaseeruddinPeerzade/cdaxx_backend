@@ -18,7 +18,6 @@ public class Module {
     private int durationSec;
 
     // FIX: Add @JsonIgnoreProperties to prevent circular reference
-    @JsonIgnore
     @JsonIgnoreProperties({"hibernateLazyInitializer", "handler", "userProgress"})
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "course_id")

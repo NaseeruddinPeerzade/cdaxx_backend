@@ -8,6 +8,7 @@ import jakarta.persistence.*;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 @Entity
 @Table(name = "courses")
@@ -89,6 +90,15 @@ public class Course {
     @JsonInclude(JsonInclude.Include.NON_NULL)
     @Column(name = "published_at")
     private LocalDateTime publishedAt;
+
+    @Column(name = "certificate_template_id")
+    private UUID certificateTemplateId;
+    
+    @Column(name = "requires_minimum_grade")
+    private Double requiresMinimumGrade = 70.0;
+    
+    @Column(name = "auto_generate_certificate")
+    private boolean autoGenerateCertificate = true;
 
     @Transient
 private double progressPercentage;
@@ -355,6 +365,22 @@ private double progressPercent;
     
     public void setIsPublished(Boolean isPublished) {
         this.isPublished = isPublished;
+    }
+
+        public Double getRequiresMinimumGrade() {
+        return requiresMinimumGrade;
+    }
+    
+    public Boolean getAutoGenerateCertificate() {
+        return autoGenerateCertificate;
+    }
+    
+    public void setRequiresMinimumGrade(Double requiresMinimumGrade) {
+        this.requiresMinimumGrade = requiresMinimumGrade;
+    }
+    
+    public void setAutoGenerateCertificate(Boolean autoGenerateCertificate) {
+        this.autoGenerateCertificate = autoGenerateCertificate;
     }
     
     public Boolean getIsFeatured() {

@@ -274,26 +274,26 @@ public ResponseEntity<Map<String, Object>> getMyProfile() {
     }
 }
 
-private Map<String, Object> convertToProfileDTO(UserDTO userDTO) {
-    Map<String, Object> profile = new HashMap<>();
-    profile.put("id", userDTO.getId());
-    profile.put("firstName", userDTO.getFirstName());
-    profile.put("lastName", userDTO.getLastName());
-    profile.put("email", userDTO.getEmail());
-    profile.put("role", userDTO.getRole());
-    profile.put("isNewUser", userDTO.getIsNewUser());
+// private Map<String, Object> convertToProfileDTO(UserDTO userDTO) {
+//     Map<String, Object> profile = new HashMap<>();
+//     profile.put("id", userDTO.getId());
+//     profile.put("firstName", userDTO.getFirstName());
+//     profile.put("lastName", userDTO.getLastName());
+//     profile.put("email", userDTO.getEmail());
+//     profile.put("role", userDTO.getRole());
+//     profile.put("isNewUser", userDTO.getIsNewUser());
     
-    // Get full user details from database for additional fields
-    User user = authService.getUserById(userDTO.getId());
-    if (user != null) {
-        profile.put("phoneNumber", user.getPhoneNumber());
-        profile.put("address", user.getAddress());
-        profile.put("dateOfBirth", user.getDateOfBirth());
-        profile.put("profileImage", user.getProfileImage());
-    }
+//     // Get full user details from database for additional fields
+//     User user = authService.getUserById(userDTO.getId());
+//     if (user != null) {
+//         profile.put("phoneNumber", user.getPhoneNumber());
+//         profile.put("address", user.getAddress());
+//         profile.put("dateOfBirth", user.getDateOfBirth());
+//         profile.put("profileImage", user.getProfileImage());
+//     }
     
-    return profile;
-}
+//     return profile;
+// }
 
     // ---------------------- VALIDATE TOKEN ----------------------
     @PostMapping("/jwt/validate")

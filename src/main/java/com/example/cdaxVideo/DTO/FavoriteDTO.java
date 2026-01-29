@@ -96,4 +96,4 @@ public class FavoriteDTO {
             this.discountPercentage = 0.0;
         }
     }
-}
+}   

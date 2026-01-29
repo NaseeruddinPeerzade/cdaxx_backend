@@ -9,9 +9,6 @@
     import com.example.cdaxVideo.DTO.VideoResponseDTO;
     import com.example.cdaxVideo.Entity.*;
     import com.example.cdaxVideo.Repository.CourseRepository;
-    import com.example.cdaxVideo.Repository.UserRepository;
-    import com.example.cdaxVideo.Repository.VideoRepository;
-    import com.example.cdaxVideo.Repository.AssessmentRepository;
     import com.example.cdaxVideo.Repository.UserVideoProgressRepository;
     import com.example.cdaxVideo.Entity.Module;
     import com.example.cdaxVideo.Repository.UserCoursePurchaseRepository;
@@ -41,14 +38,7 @@ import java.util.*;
         @Autowired
         private UserCoursePurchaseRepository userCoursePurchaseRepository; 
 
-        @Autowired
-        private UserRepository userRepository; 
 
-        @Autowired
-        private AssessmentRepository assessmentRepository; 
-
-        @Autowired
-        private VideoRepository videoRepository; 
 
         @Autowired
         private UserVideoProgressRepository userVideoProgressRepository; 

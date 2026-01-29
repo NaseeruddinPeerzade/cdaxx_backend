@@ -1,7 +1,6 @@
 package com.example.cdaxVideo.Config;
 
 import com.example.cdaxVideo.Service.CustomUserDetailsService;
-import io.jsonwebtoken.ExpiredJwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;

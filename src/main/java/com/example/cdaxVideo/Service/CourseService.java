@@ -24,7 +24,6 @@ public class CourseService {
     @Autowired private QuestionRepository questionRepository;
     @Autowired private UserCoursePurchaseRepository purchaseRepository;
     @Autowired private UserRepository userRepository;
-    @Autowired private UserVideoActivityRepository userVideoActivityRepository;
     @Autowired private UserVideoProgressRepository userVideoProgressRepository;
     @Autowired private UserModuleProgressRepository userModuleProgressRepository;
     @Autowired private UserAssessmentProgressRepository userAssessmentProgressRepository;

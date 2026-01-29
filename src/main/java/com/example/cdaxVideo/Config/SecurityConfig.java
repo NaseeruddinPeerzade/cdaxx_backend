@@ -97,7 +97,10 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/course/assessment/status").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/course/assessment/can-attempt").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/course/assessment/questions").permitAll()
-                
+                .requestMatchers(HttpMethod.GET,"/api/courses/advanced-search").permitAll()
+                .requestMatchers(HttpMethod.GET,"/api/courses/search/suggestions").permitAll()
+                .requestMatchers(HttpMethod.GET,"/api/courses/tags/popular").permitAll()
+                .requestMatchers(HttpMethod.GET,"/api/courses/tag/{tagName}").permitAll()
                 // Test endpoints
                 .requestMatchers(HttpMethod.GET, "/api/test/**").permitAll()
                 
