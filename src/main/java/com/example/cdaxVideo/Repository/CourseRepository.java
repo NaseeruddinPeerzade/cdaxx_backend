@@ -15,12 +15,12 @@ import java.util.Optional;
 public interface CourseRepository extends JpaRepository<Course, Long> {
 
     // ✅ Fetch only courses + modules (with ORDER BY)
-    @Query("SELECT DISTINCT c FROM Course c LEFT JOIN FETCH c.modules m LEFT JOIN FETCH c.tags ORDER BY m.id ASC")
+    @Query("SELECT DISTINCT c FROM Course c LEFT JOIN FETCH c.modules m ORDER BY m.id ASC")
     List<Course> findAllWithModules();
-    
-    // ✅ FIXED: Single course with tags
-    @Query("SELECT DISTINCT c FROM Course c LEFT JOIN FETCH c.modules m LEFT JOIN FETCH c.tags WHERE c.id = :id ORDER BY m.id ASC")
-    Optional<Course> findByIdWithModules(Long id);
+
+    // ✅ Fetch single course + modules (with ORDER BY)
+    @Query("SELECT DISTINCT c FROM Course c LEFT JOIN FETCH c.modules m WHERE c.id = :id ORDER BY m.id ASC")
+    Optional<Course> findByIdWithModules(@Param("id") Long id);
 
     // ✅ FIXED: Use EXISTS subquery for collection navigation
     @Query("SELECT DISTINCT c FROM Course c " +
