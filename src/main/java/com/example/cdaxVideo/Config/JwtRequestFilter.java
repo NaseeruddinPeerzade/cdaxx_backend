@@ -40,99 +40,106 @@ public class JwtRequestFilter extends OncePerRequestFilter {
         return false;
     }
     
-    private boolean isPublicEndpoint(String path, String method) {
-        // Always skip OPTIONS (CORS preflight)
-        if ("OPTIONS".equalsIgnoreCase(method)) {
-            return true;
-        }
+private boolean isPublicEndpoint(String path, String method) {
+    // Always skip OPTIONS (CORS preflight)
+    if ("OPTIONS".equalsIgnoreCase(method)) {
+        return true;
+    }
+    
+    // Remove query parameters for clean matching
+    String cleanPath = path.split("\\?")[0];
+    
+    // Debug: Print what we're checking
+    System.out.println("   Clean path for matching: " + cleanPath);
+    
+    // List ALL public endpoints from SecurityConfig
+    boolean isPublic = false; // Start with false
+    
+    // Public resources
+    if (cleanPath.startsWith("/api/public/") ||
+        cleanPath.startsWith("/api/debug/") ||
+        cleanPath.startsWith("/uploads/") ||
         
-        // Remove query parameters for clean matching
-        String cleanPath = path.split("\\?")[0];
+        // Swagger/OpenAPI
+        cleanPath.startsWith("/swagger-ui/") ||
+        cleanPath.startsWith("/v3/api-docs/") ||
+        cleanPath.equals("/swagger-ui.html") ||
+        cleanPath.startsWith("/webjars/") ||
+        cleanPath.startsWith("/swagger-resources/") ||
         
-        // Debug: Print what we're checking
-        System.out.println("   Clean path for matching: " + cleanPath);
+        // Actuator
+        cleanPath.equals("/actuator/health") ||
+        cleanPath.equals("/actuator/info") ||
         
-        // List ALL public endpoints from SecurityConfig
-        boolean isPublic = false; // Start with false
+        // Legacy public endpoints
+        cleanPath.equals("/api/dashboard/public") ||
+        cleanPath.startsWith("/api/videos/public/") ||
+        cleanPath.startsWith("/api/test/")) {
         
-        // Public resources
-        if (cleanPath.startsWith("/api/public/") ||
-            cleanPath.startsWith("/api/debug/") ||
-            cleanPath.startsWith("/uploads/") ||
+        isPublic = true;
+    }
+    
+    // ⚠️ CRITICAL FIX: Exclude profile endpoints from being treated as public
+    if (cleanPath.startsWith("/api/auth/profile/")) {
+        System.out.println("   ⚠️ Profile endpoint detected - NOT public, requires authentication");
+        return false; // Profile endpoints are NOT public!
+    }
+    
+    // Specific AUTH endpoints that are public (excluding profile)
+    if (cleanPath.startsWith("/api/auth/")) {
+        // Only these specific auth endpoints are public
+        isPublic = 
+            // Login/Register endpoints
+            cleanPath.equals("/api/auth/login") ||
+            cleanPath.equals("/api/auth/register") ||
+            cleanPath.equals("/api/auth/jwt/login") ||
+            cleanPath.equals("/api/auth/jwt/register") ||
+            cleanPath.equals("/api/auth/jwt/validate") ||
+            cleanPath.equals("/api/auth/jwt/refresh") ||
+            cleanPath.equals("/api/auth/forgot-password") ||
+            cleanPath.equals("/api/auth/reset-password") ||
+            cleanPath.equals("/api/auth/verify-email") ||
+            cleanPath.equals("/api/auth/firstName") ||
+            cleanPath.equals("/api/auth/getUserByEmail") ||
             
-            // Swagger/OpenAPI
-            cleanPath.startsWith("/swagger-ui/") ||
-            cleanPath.startsWith("/v3/api-docs/") ||
-            cleanPath.equals("/swagger-ui.html") ||
-            cleanPath.startsWith("/webjars/") ||
-            cleanPath.startsWith("/swagger-resources/") ||
+            // Logout (handled separately)
+            cleanPath.equals("/api/auth/logout");
+        
+        System.out.println("   Is auth endpoint public: " + isPublic);
+    }
+    
+    // For GET requests specifically - ADD THESE LINES:
+    if ("GET".equalsIgnoreCase(method)) {
+        // Course endpoints (already in SecurityConfig as public)
+        if (cleanPath.startsWith("/api/courses/public") ||
+            cleanPath.equals("/api/courses") ||
+            cleanPath.matches("/api/courses/\\d+") ||  // /api/courses/{id}
             
-            // Actuator
-            cleanPath.equals("/actuator/health") ||
-            cleanPath.equals("/actuator/info") ||
+            // ✅ ADD THESE CRITICAL LINES - Tag endpoints
+            cleanPath.startsWith("/api/courses/tag/") ||           // /api/courses/tag/{tagName}
+            cleanPath.equals("/api/courses/tags/popular") ||      // /api/courses/tags/popular
+            cleanPath.equals("/api/courses/search/suggestions") || // /api/courses/search/suggestions
+            cleanPath.equals("/api/courses/advanced-search") ||    // /api/courses/advanced-search
             
-            // Legacy public endpoints
-            cleanPath.equals("/api/dashboard/public") ||
-            cleanPath.startsWith("/api/videos/public/") ||
-            cleanPath.startsWith("/api/test/")) {
+            // Module endpoints
+            cleanPath.matches("/api/modules/\\d+") ||              // /api/modules/{id}
+            cleanPath.matches("/api/modules/course/\\d+") ||       // /api/modules/course/{courseId}
+            
+            // Videos and assessments under modules
+            cleanPath.matches("/api/modules/\\d+/videos") ||       // /api/modules/{moduleId}/videos
+            cleanPath.matches("/api/modules/\\d+/assessments") ||  // /api/modules/{moduleId}/assessments
+            
+            // Assessment endpoints
+            cleanPath.startsWith("/api/course/assessment/") ||
+            cleanPath.startsWith("/api/assessments/")) {
             
             isPublic = true;
         }
-        
-        // ⚠️ CRITICAL FIX: Exclude profile endpoints from being treated as public
-        if (cleanPath.startsWith("/api/auth/profile/")) {
-            System.out.println("   ⚠️ Profile endpoint detected - NOT public, requires authentication");
-            return false; // Profile endpoints are NOT public!
-        }
-        
-        // Specific AUTH endpoints that are public (excluding profile)
-        if (cleanPath.startsWith("/api/auth/")) {
-            // Only these specific auth endpoints are public
-            isPublic = 
-                // Login/Register endpoints
-                cleanPath.equals("/api/auth/login") ||
-                cleanPath.equals("/api/auth/register") ||
-                cleanPath.equals("/api/auth/jwt/login") ||
-                cleanPath.equals("/api/auth/jwt/register") ||
-                cleanPath.equals("/api/auth/jwt/validate") ||
-                cleanPath.equals("/api/auth/jwt/refresh") ||
-                cleanPath.equals("/api/auth/forgot-password") ||
-                cleanPath.equals("/api/auth/reset-password") ||
-                cleanPath.equals("/api/auth/verify-email") ||
-                cleanPath.equals("/api/auth/firstName") ||
-                cleanPath.equals("/api/auth/getUserByEmail") ||
-                
-                // Logout (handled separately)
-                cleanPath.equals("/api/auth/logout");
-            
-            System.out.println("   Is auth endpoint public: " + isPublic);
-        }
-        
-        // For GET requests specifically
-        if ("GET".equalsIgnoreCase(method)) {
-            if (cleanPath.startsWith("/api/courses/public") ||
-                cleanPath.equals("/api/courses") ||
-                cleanPath.matches("/api/courses/\\d+") ||
-                
-                // Module endpoints
-                cleanPath.matches("/api/modules/\\d+") ||
-                cleanPath.matches("/api/modules/course/\\d+") ||
-                
-                // Videos and assessments under modules
-                cleanPath.matches("/api/modules/\\d+/videos") ||
-                cleanPath.matches("/api/modules/\\d+/assessments") ||
-                
-                // Assessment endpoints
-                cleanPath.startsWith("/api/course/assessment/") ||
-                cleanPath.startsWith("/api/assessments/")) {
-                
-                isPublic = true;
-            }
-        }
-        
-        System.out.println("   Is public endpoint: " + isPublic);
-        return isPublic;
     }
+    
+    System.out.println("   Is public endpoint: " + isPublic);
+    return isPublic;
+}
     
     @Override
     protected void doFilterInternal(HttpServletRequest request, 
