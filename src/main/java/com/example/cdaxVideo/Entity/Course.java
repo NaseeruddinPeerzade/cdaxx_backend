@@ -97,8 +97,8 @@ public class Course {
     @Column(name = "requires_minimum_grade")
     private Double requiresMinimumGrade = 70.0;
     
-    @Column(name = "auto_generate_certificate")
-    private boolean autoGenerateCertificate = true;
+    // @Column(name = "auto_generate_certificate")
+    // private boolean autoGenerateCertificate = true;
 
     @Transient
 private double progressPercentage;
@@ -371,17 +371,17 @@ private double progressPercent;
         return requiresMinimumGrade;
     }
     
-    public Boolean getAutoGenerateCertificate() {
-        return autoGenerateCertificate;
-    }
+    // public Boolean getAutoGenerateCertificate() {
+    //     return autoGenerateCertificate;
+    // }
     
     public void setRequiresMinimumGrade(Double requiresMinimumGrade) {
         this.requiresMinimumGrade = requiresMinimumGrade;
     }
     
-    public void setAutoGenerateCertificate(Boolean autoGenerateCertificate) {
-        this.autoGenerateCertificate = autoGenerateCertificate;
-    }
+    // public void setAutoGenerateCertificate(Boolean autoGenerateCertificate) {
+    //     this.autoGenerateCertificate = autoGenerateCertificate;
+    // }
     
     public Boolean getIsFeatured() {
         return isFeatured;
