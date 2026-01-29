@@ -82,12 +82,9 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/courses").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/courses/{id}").permitAll()
                 
-                // ============ MODULE ENDPOINTS - FIXED ============
-                // Specific public GET endpoints for modules
+                // ============ MODULE ENDPOINTS ============
                 .requestMatchers(HttpMethod.GET, "/api/modules/{id}").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/modules/course/{courseId}").permitAll()
-                
-                // ✅ FIXED: Explicitly allow videos and assessments endpoints
                 .requestMatchers(HttpMethod.GET, "/api/modules/{moduleId}/videos").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/modules/{moduleId}/assessments").permitAll()
                 
@@ -101,20 +98,9 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET,"/api/courses/search/suggestions").permitAll()
                 .requestMatchers(HttpMethod.GET,"/api/courses/tags/popular").permitAll()
                 .requestMatchers(HttpMethod.GET,"/api/courses/tag/{tagName}").permitAll()
+                
                 // Test endpoints
                 .requestMatchers(HttpMethod.GET, "/api/test/**").permitAll()
-                
-                // ============ AUTHENTICATED ENDPOINTS ============
-                // Assessment submissions require authentication
-                .requestMatchers(HttpMethod.POST, "/api/modules/{moduleId}/assessments").authenticated()
-                .requestMatchers(HttpMethod.POST, "/api/course/assessment/**").authenticated()
-                .requestMatchers(HttpMethod.POST, "/api/assessments/**").authenticated()
-                .requestMatchers(HttpMethod.POST, "/api/course/assessment/submit").authenticated()
-                
-                // Module POST endpoints (create/update)
-                .requestMatchers(HttpMethod.POST, "/api/modules").authenticated()
-                .requestMatchers(HttpMethod.POST, "/api/modules/{moduleId}/unlock-assessment").authenticated()
-                .requestMatchers(HttpMethod.POST, "/api/modules/{moduleId}/unlock-next").authenticated()
                 
                 // Public video endpoints
                 .requestMatchers("/api/videos/public/**").permitAll()
@@ -134,7 +120,18 @@ public class SecurityConfig {
                 // Actuator endpoints
                 .requestMatchers("/actuator/health", "/actuator/info").permitAll()
                 
-                // =============== PROTECTED ENDPOINTS ===============
+                // ============ AUTHENTICATED ENDPOINTS ============
+                // Assessment submissions require authentication
+                .requestMatchers(HttpMethod.POST, "/api/modules/{moduleId}/assessments").authenticated()
+                .requestMatchers(HttpMethod.POST, "/api/course/assessment/**").authenticated()
+                .requestMatchers(HttpMethod.POST, "/api/assessments/**").authenticated()
+                .requestMatchers(HttpMethod.POST, "/api/course/assessment/submit").authenticated()
+                
+                // Module POST endpoints (create/update)
+                .requestMatchers(HttpMethod.POST, "/api/modules").authenticated()
+                .requestMatchers(HttpMethod.POST, "/api/modules/{moduleId}/unlock-assessment").authenticated()
+                .requestMatchers(HttpMethod.POST, "/api/modules/{moduleId}/unlock-next").authenticated()
+                
                 // User profile endpoints
                 .requestMatchers("/api/auth/profile/**").authenticated()
                 .requestMatchers("/api/auth/jwt/me").authenticated()
@@ -148,7 +145,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.DELETE, "/api/courses/{id}").authenticated()
                 .requestMatchers("/api/courses/{id}/enroll").authenticated()
 
-                // Streak endpoints (ALL require authentication)
+                // Streak endpoints
                 .requestMatchers(HttpMethod.GET, "/api/streak/**").authenticated()
                 .requestMatchers(HttpMethod.GET, "/api/profile/streak").authenticated()
                 
